@@ -1,0 +1,17 @@
+# Dependencies, build output, secrets
+node_modules/
+
+.env
+
+
+
+MIGRATION.md
+/MIGRATION.md
+
+SUMMARY.md
+/SUMMARY.md
+
+UPGRADE_CHECKLIST.md
+/UPGRADE_CHECKLIST.md
+
+/docs
