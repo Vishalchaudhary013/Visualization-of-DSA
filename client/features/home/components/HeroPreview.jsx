@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { bubbleSort } from "@/features/visualizer/algorithms/sorting";
 
 const SAMPLE = [38, 12, 64, 25, 81, 47, 9, 56, 30, 72];

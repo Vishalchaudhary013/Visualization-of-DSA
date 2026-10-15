@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import {
   LuChartColumn as BarChart,
   LuLayoutGrid as Grid,
@@ -29,7 +29,7 @@ function isOutsideRange(index, step) {
   return index < step.range[0] || index > step.range[1];
 }
 
-// Stable keys per value occurrence let framer-motion animate values moving
+// Stable keys per value occurrence let motion animate values moving
 function buildKeys(values) {
   const seen = new Map();
   return values.map((value) => {

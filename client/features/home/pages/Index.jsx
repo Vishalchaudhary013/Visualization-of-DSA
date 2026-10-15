@@ -62,7 +62,7 @@ export default function Index() {
             </span>
             <h1 className="text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
               See how algorithms{" "}
-              <span className="bg-gradient-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <span className="bg-linear-to-r from-primary via-blue-600 to-purple-600 bg-clip-text text-transparent">
                 really work
               </span>
             </h1>
@@ -100,7 +100,7 @@ export default function Index() {
               <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 <Icon className="h-5 w-5" />
               </span>
-              <h3 className="mb-1 font-semibold">{title}</h3>
+              <h3 className="mb-1 text-lg font-semibold">{title}</h3>
               <p className="text-sm text-muted-foreground">{description}</p>
             </div>
           ))}

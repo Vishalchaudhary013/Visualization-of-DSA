@@ -88,7 +88,7 @@ export function AlgorithmCatalog() {
               className="group flex flex-col rounded-xl border border-border bg-card p-5 transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-lg"
             >
               <div className="mb-2 flex items-start justify-between gap-2">
-                <h3 className="font-semibold">{algorithm.name}</h3>
+                <h3 className="text-lg font-semibold">{algorithm.name}</h3>
                 <span
                   className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${DIFFICULTY_BADGE[algorithm.difficulty]}`}
                 >

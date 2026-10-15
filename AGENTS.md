@@ -7,7 +7,7 @@ While the starter comes with a express server, only create endpoint when strictl
 ## Tech Stack
 
 - **npm**: Package manager (use `package-lock.json`)
-- **Frontend**: React 18 + React Router (spa) + JavaScript + Vite + TailwindCSS 4 (with `tailwind.config.js` loaded via `@config`) + framer-motion + next-themes
+- **Frontend**: React 19 + React Router 7 (spa) + JavaScript + Vite 8 (`@vitejs/plugin-react`) + Tailwind CSS 4.3 (CSS-first config via `@tailwindcss/vite`, no `tailwind.config.js`) + Motion (`motion/react`) + next-themes
 - **Backend**: Node + Express server; in development it serves the app through Vite middleware
 - **Testing**: Vitest
 - **UI**: Radix UI + TailwindCSS + react-icons (Lucide set, `react-icons/lu`)
@@ -18,12 +18,10 @@ While the starter comes with a express server, only create endpoint when strictl
 client/                          # React SPA frontend (Vite root)
 ├── index.html                   # HTML entry
 ├── App.jsx                      # Providers (theme, tooltips, toasts) + routes (Visualizer is lazy-loaded)
-├── vite.config.js               # Vite config (aliases, build → ../dist/spa)
-├── tailwind.config.js           # Tailwind theme (loaded by global.css via @config)
-├── postcss.config.js
+├── vite.config.js               # Vite config (React + Tailwind plugins, aliases, build → ../dist/spa)
 ├── public/                      # Static files copied as-is to the site root (robots.txt)
 └── features/
-    ├── global.css               # Tailwind import, class-based dark variant, theme tokens
+    ├── global.css               # Tailwind v4 config: tokens, @theme, @custom-variant dark, @utility
     ├── common/                  # Shared across features
     │   ├── components/ui/       # Radix-based UI primitives (only the ones in use)
     │   ├── components/layout/   # Header, ThemeToggle, ScrollToTop
@@ -135,7 +133,12 @@ npm test        # Run Vitest tests (*.test.js under client/)
 
 ### Add new colors to the theme
 
-Open `client/features/global.css` and `client/tailwind.config.js` and add new tailwind colors.
+Tailwind 4 is configured in CSS only. In `client/features/global.css`, add the raw HSL value to `:root` (and `.dark`), then map it in `@theme inline` as `--color-<name>: hsl(var(--<name>));`. The `bg-<name>`, `text-<name>`, etc. utilities then exist automatically.
+
+### React 19 notes
+
+- Components receive `ref` as a normal prop; don't use `forwardRef` in new code.
+- Animations use Motion: `import { motion } from "motion/react"`.
 
 ### New API Route
 Logic goes in a controller; route files only map URLs to controller functions.
