@@ -1,13 +1,13 @@
 # Fusion Starter
 
-A production-ready full-stack React application template with integrated Express server, featuring React Router SPA mode, JavaScript, Vitest, Zod and modern tooling.
+An interactive DSA (data structures & algorithms) visualizer: a React SPA with an integrated Express server, React Router, JavaScript, Vitest and modern tooling.
 
 While the starter comes with a express server, only create endpoint when strictly neccesary, for example to encapsulate logic that must leave in the server, such as private keys handling, or certain DB operations, db...
 
 ## Tech Stack
 
 - **npm**: Package manager (use `package-lock.json`)
-- **Frontend**: React 18 + React Router (spa) + JavaScript + Vite + TailwindCSS 4 (with `tailwind.config.js` loaded via `@config`)
+- **Frontend**: React 18 + React Router (spa) + JavaScript + Vite + TailwindCSS 4 (with `tailwind.config.js` loaded via `@config`) + framer-motion + next-themes
 - **Backend**: Node + Express server; in development it serves the app through Vite middleware
 - **Testing**: Vitest
 - **UI**: Radix UI + TailwindCSS + react-icons (Lucide set, `react-icons/lu`)
@@ -17,16 +17,31 @@ While the starter comes with a express server, only create endpoint when strictl
 ```
 client/                          # React SPA frontend (Vite root)
 ├── index.html                   # HTML entry
-├── App.jsx                      # App entry point and SPA routing setup
+├── App.jsx                      # Providers (theme, tooltips, toasts) + routes (Visualizer is lazy-loaded)
 ├── vite.config.js               # Vite config (aliases, build → ../dist/spa)
 ├── tailwind.config.js           # Tailwind theme (loaded by global.css via @config)
 ├── postcss.config.js
 ├── public/                      # Static files copied as-is to the site root (robots.txt)
 └── features/
-    ├── global.css               # Tailwind import + theme tokens and global styles
-    ├── common/                  # Shared UI library, hooks, NotFound page
-    ├── home/pages/Index.jsx     # Home page
-    └── visualizer/              # Visualizer page, components, hooks, algorithm steps
+    ├── global.css               # Tailwind import, class-based dark variant, theme tokens
+    ├── common/                  # Shared across features
+    │   ├── components/ui/       # Radix-based UI primitives (only the ones in use)
+    │   ├── components/layout/   # Header, ThemeToggle, ScrollToTop
+    │   └── pages/NotFound.jsx
+    ├── home/                    # Landing page
+    │   ├── pages/Index.jsx
+    │   └── components/          # HeroPreview (looping demo), AlgorithmCatalog (search + filter)
+    ├── assistant/components/    # AssistantChat (floating Q&A, calls POST /api/assistant)
+    └── visualizer/
+        ├── pages/Visualizer.jsx
+        ├── algorithms/          # Step generators (sorting, searching, graph), recorder, registry (index.js), tests
+        ├── components/
+        │   ├── inputs/          # AlgorithmPicker, ArrayInputs, GraphInputs
+        │   ├── controls/        # PlaybackControls
+        │   ├── canvas/          # ArrayVisualizer (boxes/bars), GraphVisualizer (draggable SVG)
+        │   └── panels/          # Pseudocode, StepLog, OperationStats, math panels, AlgorithmInfoPanel
+        ├── hooks/               # usePlayback, useKeyboardShortcuts, useVisualizerState (URL-synced)
+        └── utils/inputs.js      # Presets, parsing/validation, URL params (+ tests)
 
 server/                          # Express backend
 ├── start.js                     # Entry point: app.listen + dev (Vite middleware) or prod (serves dist/spa)
@@ -34,17 +49,21 @@ server/                          # Express backend
 ├── routes/                      # Route definitions only (URL -> controller)
 │   ├── index.js                 # Combines all route files under /api
 │   ├── assistant.routes.js      # POST /api/assistant
-│   └── system.routes.js         # GET /api/ping, GET /api/demo
+│   └── system.routes.js         # GET /api/ping
 ├── controllers/                 # Request handling + logic
 │   ├── assistant.controller.js
 │   └── system.controller.js
 └── utils/                       # Reusable helpers (fuzzyMatch.js)
 
 shared/                          # Code used by both client & server
-└── algorithms.js                # Algorithm metadata
-
-docs/                            # Migration notes
+└── algorithms.js                # Algorithm metadata (pseudocode lines are referenced by step generators)
 ```
+
+### Adding an algorithm
+
+1. Add its metadata (incl. `pseudoCode`, `howItWorks`, `useCases`) to `shared/algorithms.js`.
+2. Write a step generator in `client/features/visualizer/algorithms/` (use `createRecorder` for arrays) and set each step's `line` to the pseudocode line index.
+3. Register it in `client/features/visualizer/algorithms/index.js`. The picker, home catalog and tests pick it up automatically.
 
 Components are written as regular JSX (`<Button className="...">`), not compiled `_jsx(...)` calls.
 
@@ -96,9 +115,8 @@ className={`rounded-md px-4 ${isActive ? "bg-primary" : "bg-muted"} ${className 
 - **Database / models**: None needed currently (algorithm data is static in `shared/algorithms.js`). If one is added (e.g. MongoDB with Mongoose), put schemas in `server/models/`, keep the connection string in `.env`, and use models only from controllers
 
 #### API Routes
-- `POST /api/assistant` - Algorithm Q&A used by the assistant chat
-- `GET /api/ping` - Simple ping api
-- `GET /api/demo` - Demo endpoint
+- `POST /api/assistant` - Algorithm Q&A used by the assistant chat (`{ question, algorithmId? }`)
+- `GET /api/ping` - Health check
 
 Path aliases (client):
 - `@shared/*` - Shared folder
@@ -110,7 +128,7 @@ Path aliases (client):
 npm run dev     # Start Express + Vite dev server on port 8080
 npm run build   # Build the client into dist/spa
 npm start       # Start production server (serves dist/spa + API)
-npm test        # Run Vitest tests (*.spec.js / *.test.js under client/; none yet)
+npm test        # Run Vitest tests (*.test.js under client/)
 ```
 
 ## Adding Features

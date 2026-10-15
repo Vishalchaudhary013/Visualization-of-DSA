@@ -4,6 +4,9 @@
 @import "tailwindcss";
 @config "../tailwind.config.js";
 
+/* Class-based dark mode (toggled by next-themes on <html>) */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @layer base {
   /**
    * Tailwind CSS theme

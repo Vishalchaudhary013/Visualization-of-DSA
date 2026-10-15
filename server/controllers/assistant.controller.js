@@ -66,6 +66,14 @@ function buildAlgorithmSummary(algoId) {
   ];
   if (explanation) {
     lines.push(`Detail: ${explanation}`);
+  } else if (algo.howItWorks) {
+    lines.push(
+      "How it works:",
+      ...algo.howItWorks.map((item, index) => `${index + 1}. ${item}`),
+    );
+  }
+  if (algo.useCases) {
+    lines.push(`Use it for: ${algo.useCases.join("; ")}.`);
   }
   return lines.join("\n");
 }
@@ -92,9 +100,11 @@ function buildFallbackMessage() {
   return `I can answer questions about sorting, searching, and graph algorithms. Try referencing an algorithm name (e.g., "Explain quick sort").\n\nAvailable families:\n${categoryLines}`;
 }
 
-// POST /api/assistant  { question } -> { reply, matchedIds }
+// POST /api/assistant  { question, algorithmId? } -> { reply, matchedIds }
+// algorithmId is the algorithm open in the visualizer; it answers questions
+// that don't name one ("how does this work?").
 export const askAssistant = (req, res) => {
-  const { question } = req.body;
+  const { question, algorithmId } = req.body ?? {};
   if (!question || typeof question !== "string" || !question.trim()) {
     return res.status(400).json({ error: "Please provide a question." });
   }
@@ -116,6 +126,16 @@ export const askAssistant = (req, res) => {
     return res.json({
       reply: buildCategoryMessage(category, algos),
       matchedIds: algos.map((algo) => algo.id),
+    });
+  }
+
+  if (
+    typeof algorithmId === "string" &&
+    Object.hasOwn(ALGORITHMS, algorithmId)
+  ) {
+    return res.json({
+      reply: buildAlgorithmSummary(algorithmId),
+      matchedIds: [algorithmId],
     });
   }
 
