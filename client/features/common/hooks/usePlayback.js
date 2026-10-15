@@ -4,8 +4,11 @@ import { useState, useCallback, useEffect } from "react";
 export const BASE_INTERVAL = 800;
 export const SPEED_PRESETS = [0.25, 0.5, 1, 2, 4, 8];
 
-/** Steps through a list of recorded algorithm steps with play/pause/seek. */
-export function usePlayback(steps) {
+/**
+ * Steps through a list of recorded steps with play/pause/seek.
+ * `autoPlay` starts playing whenever a new list of steps arrives.
+ */
+export function usePlayback(steps, { autoPlay = false } = {}) {
   const [currentStep, setCurrentStep] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [speed, setSpeed] = useState(1);
@@ -14,8 +17,8 @@ export function usePlayback(steps) {
   // New input or algorithm: rewind
   useEffect(() => {
     setCurrentStep(0);
-    setIsPlaying(false);
-  }, [steps]);
+    setIsPlaying(autoPlay && steps.length > 1);
+  }, [steps, autoPlay]);
 
   useEffect(() => {
     if (!isPlaying) return undefined;

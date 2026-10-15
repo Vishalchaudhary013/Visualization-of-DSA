@@ -18,6 +18,7 @@ export default defineConfig({
       "@shared": path.resolve(__dirname, "../shared"),
     },
   },
+  test: { name: "client" },
   build: {
     outDir: path.resolve(__dirname, "../dist/spa"),
     emptyOutDir: true,

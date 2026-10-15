@@ -14,8 +14,8 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/features/common/components/ui/tooltip";
-import { SPEED_PRESETS } from "../../hooks/usePlayback";
-import { SHORTCUTS } from "../../hooks/useKeyboardShortcuts";
+import { SPEED_PRESETS } from "@/features/common/hooks/usePlayback";
+import { SHORTCUTS } from "@/features/common/hooks/useKeyboardShortcuts";
 
 function IconButton({ label, shortcut, children, ...props }) {
   return (

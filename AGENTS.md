@@ -1,6 +1,6 @@
 # Fusion Starter
 
-An interactive DSA (data structures & algorithms) visualizer: a React SPA with an integrated Express server, React Router, JavaScript, Vitest and modern tooling.
+An interactive DSA (data structures & algorithms) visualizer: a React SPA with an integrated Express server, user accounts and saved history (MongoDB), React Router, JavaScript, Vitest and modern tooling.
 
 While the starter comes with a express server, only create endpoint when strictly neccesary, for example to encapsulate logic that must leave in the server, such as private keys handling, or certain DB operations, db...
 
@@ -8,7 +8,9 @@ While the starter comes with a express server, only create endpoint when strictl
 
 - **npm**: Package manager (use `package-lock.json`)
 - **Frontend**: React 19 + React Router 7 (spa) + JavaScript + Vite 8 (`@vitejs/plugin-react`) + Tailwind CSS 4.3 (CSS-first config via `@tailwindcss/vite`, no `tailwind.config.js`) + Motion (`motion/react`) + next-themes
-- **Backend**: Node + Express server; in development it serves the app through Vite middleware
+- **Backend**: Node + Express 5; in development it serves the app through Vite middleware
+- **Database**: MongoDB via Mongoose (users + history). Optional: without `MONGODB_URI` the app runs and only accounts/history are disabled (their routes return 503)
+- **Auth**: email + password (bcryptjs), JWT in an httpOnly `dsa_session` cookie, zod request validation, express-rate-limit on credential routes
 - **Testing**: Vitest
 - **UI**: Radix UI + TailwindCSS + react-icons (Lucide set, `react-icons/lu`)
 
@@ -25,36 +27,50 @@ client/                          # React SPA frontend (Vite root)
     ├── common/                  # Shared across features
     │   ├── components/ui/       # Radix-based UI primitives (only the ones in use)
     │   ├── components/layout/   # Header, ThemeToggle, ScrollToTop
+    │   ├── components/playback/ # PlaybackControls, PseudocodePanel, StepLog (visualizer + data structures)
+    │   ├── hooks/               # usePlayback, useKeyboardShortcuts
+    │   ├── lib/api.js           # fetch wrapper for /api (JSON, cookies, ApiError)
     │   └── pages/NotFound.jsx
     ├── home/                    # Landing page
     │   ├── pages/Index.jsx
     │   └── components/          # HeroPreview (looping demo), AlgorithmCatalog (search + filter)
     ├── assistant/components/    # AssistantChat (floating Q&A, calls POST /api/assistant)
+    ├── auth/                    # AuthContext (useAuth), Login/Register/Profile pages, RequireAuth, UserMenu, AccountSettings
+    ├── history/                 # API calls, useHistorySync (auto-saves runs), HistoryList, SaveStatus
+    ├── data-structures/
+    │   ├── pages/               # DataStructuresIndex, DataStructurePage (/data-structures/:id)
+    │   ├── engines/             # Stack, queue, heap, linked list, BST operations -> steps (+ tests)
+    │   └── components/views/    # LinearViews (stack/queue/list), TreeViews (heap/BST)
     └── visualizer/
         ├── pages/Visualizer.jsx
         ├── algorithms/          # Step generators (sorting, searching, graph), recorder, registry (index.js), tests
         ├── components/
         │   ├── inputs/          # AlgorithmPicker, ArrayInputs, GraphInputs
-        │   ├── controls/        # PlaybackControls
         │   ├── canvas/          # ArrayVisualizer (boxes/bars), GraphVisualizer (draggable SVG)
-        │   └── panels/          # Pseudocode, StepLog, OperationStats, math panels, AlgorithmInfoPanel
-        ├── hooks/               # usePlayback, useKeyboardShortcuts, useVisualizerState (URL-synced)
+        │   └── panels/          # OperationStats, math panels, AlgorithmInfoPanel
+        ├── hooks/               # useVisualizerState (URL-synced)
         └── utils/inputs.js      # Presets, parsing/validation, URL params (+ tests)
 
 server/                          # Express backend
-├── start.js                     # Entry point: app.listen + dev (Vite middleware) or prod (serves dist/spa)
-├── app.js                       # createServer(): Express middleware + mounts /api
-├── routes/                      # Route definitions only (URL -> controller)
-│   ├── index.js                 # Combines all route files under /api
+├── start.js                     # Entry point: connects MongoDB, app.listen, dev (Vite middleware) or prod (dist/spa)
+├── app.js                       # createServer(): JSON, cookies, helmet on /api, error handler
+├── config/db.js                 # connectDb(), isDbConnected()
+├── models/                      # Mongoose schemas: User, HistoryEntry
+├── routes/                      # Route definitions only (URL -> middleware -> controller)
+│   ├── index.js                 # Combines all route files under /api (+ JSON 404)
 │   ├── assistant.routes.js      # POST /api/assistant
+│   ├── auth.routes.js           # /api/auth/*
+│   ├── history.routes.js        # /api/history/*
 │   └── system.routes.js         # GET /api/ping
-├── controllers/                 # Request handling + logic
-│   ├── assistant.controller.js
-│   └── system.controller.js
-└── utils/                       # Reusable helpers (fuzzyMatch.js)
+├── controllers/                 # Request handling + logic (assistant, auth, history, system)
+├── middleware/                  # requireDb, requireAuth, validateBody(zod schema)
+├── validation/schemas.js        # zod schemas for every request body
+├── utils/                       # fuzzyMatch.js, session.js (JWT cookie helpers)
+└── tests/                       # Unit tests + API integration tests (supertest + MongoDB)
 
 shared/                          # Code used by both client & server
-└── algorithms.js                # Algorithm metadata (pseudocode lines are referenced by step generators)
+├── algorithms.js                # Algorithm metadata (pseudocode lines are referenced by step generators)
+└── dataStructures.js            # Data structure metadata + per-operation pseudocode
 ```
 
 ### Adding an algorithm
@@ -110,10 +126,14 @@ className={`rounded-md px-4 ${isActive ? "bg-primary" : "bg-muted"} ${className 
 - **Development**: Single port (8080, or `PORT`) for frontend, backend and hot-reload websocket
 - **Hot reload**: Vite HMR for client code; the server restarts on changes in `server/` and `shared/`
 - **API endpoints**: Prefixed with `/api/`
-- **Database / models**: None needed currently (algorithm data is static in `shared/algorithms.js`). If one is added (e.g. MongoDB with Mongoose), put schemas in `server/models/`, keep the connection string in `.env`, and use models only from controllers
+- **Database / models**: MongoDB with Mongoose. Schemas live in `server/models/`, the connection string in `.env` (`MONGODB_URI`, see `.env.example`), and models are used only from controllers
+- **Environment**: `MONGODB_URI` (accounts/history), `JWT_SECRET` (required in production; dev uses a random per-process secret), optional `PORT`
 
 #### API Routes
-- `POST /api/assistant` - Algorithm Q&A used by the assistant chat (`{ question, algorithmId? }`)
+- `POST /api/assistant` - Q&A used by the assistant chat (`{ question, algorithmId? }`, id of the algorithm or data structure on screen)
+- `POST /api/auth/register` `{ name, email, password }`, `POST /api/auth/login` `{ email, password }`, `POST /api/auth/logout`
+- `GET /api/auth/me`, `PATCH /api/auth/me` `{ name }`, `PUT /api/auth/password` `{ currentPassword, newPassword }`, `DELETE /api/auth/me` `{ password }`
+- `GET /api/history?page&limit&kind&itemId`, `GET /api/history/stats`, `POST /api/history`, `PATCH /api/history/:id`, `DELETE /api/history/:id`, `DELETE /api/history` (all require a session)
 - `GET /api/ping` - Health check
 
 Path aliases (client):
@@ -126,7 +146,8 @@ Path aliases (client):
 npm run dev     # Start Express + Vite dev server on port 8080
 npm run build   # Build the client into dist/spa
 npm start       # Start production server (serves dist/spa + API)
-npm test        # Run Vitest tests (*.test.js under client/)
+npm test        # Vitest: client + server projects (vitest.config.js). API integration tests use
+                #   MONGODB_TEST_URI or mongodb-memory-server, and are skipped when neither is available
 ```
 
 ## Adding Features

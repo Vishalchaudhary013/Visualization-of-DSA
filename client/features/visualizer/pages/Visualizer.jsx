@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { LuShare2 as Share } from "react-icons/lu";
 import { Button } from "@/features/common/components/ui/button";
@@ -21,18 +22,23 @@ import {
 import { AlgorithmPicker } from "../components/inputs/AlgorithmPicker";
 import { ArrayInputs } from "../components/inputs/ArrayInputs";
 import { GraphInputs } from "../components/inputs/GraphInputs";
-import { PlaybackControls } from "../components/controls/PlaybackControls";
+import { PlaybackControls } from "@/features/common/components/playback/PlaybackControls";
 import { ArrayVisualizer } from "../components/canvas/ArrayVisualizer";
 import { GraphVisualizer } from "../components/canvas/GraphVisualizer";
-import { PseudocodePanel } from "../components/panels/PseudocodePanel";
+import { PseudocodePanel } from "@/features/common/components/playback/PseudocodePanel";
 import { OperationStats } from "../components/panels/OperationStats";
-import { StepLog } from "../components/panels/StepLog";
+import { StepLog } from "@/features/common/components/playback/StepLog";
 import { StepMathDetails } from "../components/panels/StepMathDetails";
 import { AlgorithmMathSummary } from "../components/panels/AlgorithmMathSummary";
 import { AlgorithmInfoPanel } from "../components/panels/AlgorithmInfoPanel";
-import { usePlayback, SPEED_PRESETS } from "../hooks/usePlayback";
-import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import {
+  usePlayback,
+  SPEED_PRESETS,
+} from "@/features/common/hooks/usePlayback";
+import { useKeyboardShortcuts } from "@/features/common/hooks/useKeyboardShortcuts";
 import { useVisualizerState } from "../hooks/useVisualizerState";
+import { useHistorySync } from "@/features/history/hooks/useHistorySync";
+import { SaveStatus } from "@/features/history/components/SaveStatus";
 
 const DIFFICULTY_BADGE = {
   beginner: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
@@ -73,6 +79,43 @@ export default function Visualizer() {
   );
   const playback = usePlayback(steps);
   const { step } = playback;
+
+  // Save the run (algorithm + the user's input) once they start playing it
+  const { search } = useLocation();
+  const lastStep = steps.at(-1);
+  const historyEntry = useMemo(
+    () =>
+      lastStep && {
+        kind: "algorithm",
+        itemId: algorithmId,
+        title: algorithm.name,
+        input: isGraph ? { graph } : isSearch ? { array, target } : { array },
+        summary: {
+          steps: steps.length,
+          comparisons: lastStep.operations.comparisons,
+          swaps: lastStep.operations.swaps,
+          result: lastStep.explanation.slice(0, 500),
+        },
+        link: `/visualizer${search}`,
+      },
+    [
+      lastStep,
+      steps.length,
+      algorithmId,
+      algorithm.name,
+      isGraph,
+      isSearch,
+      graph,
+      array,
+      target,
+      search,
+    ],
+  );
+  const saveStatus = useHistorySync({
+    key: search,
+    entry: historyEntry,
+    ready: playback.isPlaying || playback.currentStep > 0,
+  });
 
   const shortcuts = useMemo(() => {
     const shiftSpeed = (direction) => {
@@ -131,14 +174,13 @@ export default function Visualizer() {
             {algorithm.description}
           </p>
         </div>
-        <Button
-          variant="outline"
-          onClick={shareLink}
-          className="self-start md:self-auto"
-        >
-          <Share />
-          Share this setup
-        </Button>
+        <div className="flex flex-col items-start gap-2 md:items-end">
+          <Button variant="outline" onClick={shareLink}>
+            <Share />
+            Share this setup
+          </Button>
+          <SaveStatus status={saveStatus} />
+        </div>
       </header>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[300px_minmax(0,1fr)_380px]">

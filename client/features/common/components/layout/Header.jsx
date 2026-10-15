@@ -3,13 +3,16 @@ import {
   LuHouse as Home,
   LuSparkles as Sparkles,
   LuChartColumn as Chart,
+  LuBoxes as Boxes,
 } from "react-icons/lu";
 import { buttonVariants } from "@/features/common/components/ui/button";
+import { UserMenu } from "@/features/auth/components/UserMenu";
 import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_ITEMS = [
   { to: "/", label: "Home", icon: Home, end: true },
-  { to: "/visualizer", label: "Visualizer", icon: Chart },
+  { to: "/visualizer", label: "Algorithms", icon: Chart },
+  { to: "/data-structures", label: "Data Structures", icon: Boxes },
 ];
 
 export function Header() {
@@ -20,7 +23,7 @@ export function Header() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-blue-600 text-white">
             <Sparkles className="h-5 w-5" />
           </span>
-          <span className="hidden sm:inline">Algorithm Visualizer</span>
+          <span className="hidden lg:inline">Algorithm Visualizer</span>
         </Link>
         <nav className="flex items-center gap-1" aria-label="Main">
           {NAV_ITEMS.map(({ to, label, icon: Icon, end }) => (
@@ -36,10 +39,11 @@ export function Header() {
               }
             >
               <Icon />
-              <span className="hidden sm:inline">{label}</span>
+              <span className="hidden md:inline">{label}</span>
             </NavLink>
           ))}
           <ThemeToggle />
+          <UserMenu />
         </nav>
       </div>
     </header>

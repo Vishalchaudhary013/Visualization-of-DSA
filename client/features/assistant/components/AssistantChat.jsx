@@ -9,11 +9,21 @@ import {
 import { Button } from "@/features/common/components/ui/button";
 import { Input } from "@/features/common/components/ui/input";
 import { ALGORITHMS } from "@shared/algorithms";
+import { DATA_STRUCTURES } from "@shared/dataStructures";
+
+function openTopic(pathname, search) {
+  if (pathname === "/visualizer") {
+    const id = new URLSearchParams(search).get("algo");
+    return Object.hasOwn(ALGORITHMS, id ?? "") ? id : undefined;
+  }
+  const id = pathname.match(/^\/data-structures\/([a-z-]+)$/)?.[1];
+  return id && Object.hasOwn(DATA_STRUCTURES, id) ? id : undefined;
+}
 
 const SUGGESTIONS = [
-  "How does this algorithm work?",
+  "How does this work?",
   "Explain quick sort",
-  "Which sorting algorithms are there?",
+  "How does a heap work?",
 ];
 // Keeps the reply's line breaks and turns **text** into bold
 function renderMessageText(text) {
@@ -37,13 +47,9 @@ export function AssistantChat() {
   ]);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
-  // The algorithm open in the visualizer answers questions like "how does this work?"
+  // The algorithm or data structure on screen answers "how does this work?"
   const { pathname, search } = useLocation();
-  const openAlgorithm =
-    pathname === "/visualizer" ? new URLSearchParams(search).get("algo") : null;
-  const algorithmId = Object.hasOwn(ALGORITHMS, openAlgorithm ?? "")
-    ? openAlgorithm
-    : undefined;
+  const algorithmId = openTopic(pathname, search);
 
   const sendMessage = async (text = input) => {
     if (!text.trim() || isSending) return;
@@ -152,7 +158,7 @@ export function AssistantChat() {
                 onChange={(event) => setInput(event.target.value)}
                 placeholder={
                   algorithmId
-                    ? `Ask about ${ALGORITHMS[algorithmId].name}…`
+                    ? `Ask about ${(ALGORITHMS[algorithmId] ?? DATA_STRUCTURES[algorithmId]).name}…`
                     : "Ask about an algorithm…"
                 }
                 className="text-sm!"
