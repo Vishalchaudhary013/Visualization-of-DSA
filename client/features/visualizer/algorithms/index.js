@@ -11,12 +11,19 @@ import {
 import { linearSearch, binarySearch } from "./searching.js";
 import { bfs, dfs } from "./graph.js";
 import { dijkstra, kruskal, prim, topologicalSort } from "./weightedGraph.js";
+import { gridSearch } from "./pathfinding.js";
 
 export const ALGORITHM_KINDS = {
   SORT: "sort",
   SEARCH: "search",
   GRAPH: "graph",
+  GRID: "grid",
 };
+
+const grid = (mode) => ({
+  kind: ALGORITHM_KINDS.GRID,
+  run: ({ grid: cells }) => gridSearch(cells, mode),
+});
 
 const sort = (run, markerLabel) => ({
   kind: ALGORITHM_KINDS.SORT,
@@ -92,6 +99,10 @@ export const ALGORITHM_RUNNERS = {
     orderLabel: "Topological order",
     run: ({ graph }) => topologicalSort(graph.vertices, graph.edges),
   },
+  "a-star": grid("astar"),
+  "grid-dijkstra": grid("dijkstra"),
+  "grid-bfs": grid("bfs"),
+  "greedy-best-first": grid("greedy"),
 };
 
 /**

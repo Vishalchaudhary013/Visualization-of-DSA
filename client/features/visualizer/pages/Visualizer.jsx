@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { toast } from "sonner";
 import { LuShare2 as Share } from "react-icons/lu";
@@ -23,6 +23,8 @@ import {
 import { AlgorithmPicker } from "../components/inputs/AlgorithmPicker";
 import { ArrayInputs } from "../components/inputs/ArrayInputs";
 import { GraphInputs } from "../components/inputs/GraphInputs";
+import { GridInputs } from "../components/inputs/GridInputs";
+import { GridVisualizer } from "../components/canvas/GridVisualizer";
 import { PlaybackControls } from "@/features/common/components/playback/PlaybackControls";
 import { ArrayVisualizer } from "../components/canvas/ArrayVisualizer";
 import { GraphVisualizer } from "../components/canvas/GraphVisualizer";
@@ -67,18 +69,32 @@ function Panel({ title, aside, children, className }) {
 
 export default function Visualizer() {
   const visualizer = useVisualizerState();
-  const { algorithm: algorithmId, kind, array, target, graph } = visualizer;
+  const {
+    algorithm: algorithmId,
+    kind,
+    array,
+    target,
+    graph,
+    grid,
+  } = visualizer;
   const algorithm = ALGORITHMS[algorithmId];
   const runner = ALGORITHM_RUNNERS[algorithmId];
   const isGraph = kind === ALGORITHM_KINDS.GRAPH;
   const isSearch = kind === ALGORITHM_KINDS.SEARCH;
   const isSort = kind === ALGORITHM_KINDS.SORT;
+  const isGrid = kind === ALGORITHM_KINDS.GRID;
+  const [gridTool, setGridTool] = useState("wall");
 
   const steps = useMemo(
-    () => runAlgorithm(algorithmId, { array, target, graph }),
-    [algorithmId, array, target, graph],
+    () => runAlgorithm(algorithmId, { array, target, graph, grid }),
+    [algorithmId, array, target, graph, grid],
   );
   const playback = usePlayback(steps);
+  // Grid searches explore hundreds of cells: start them at a faster speed
+  const { setSpeed } = playback;
+  useEffect(() => {
+    setSpeed(isGrid ? 4 : 1);
+  }, [isGrid, setSpeed]);
   const { step } = playback;
 
   // Save the run (algorithm + the user's input) once they start playing it
@@ -90,7 +106,13 @@ export default function Visualizer() {
         kind: "algorithm",
         itemId: algorithmId,
         title: algorithm.name,
-        input: isGraph ? { graph } : isSearch ? { array, target } : { array },
+        input: isGrid
+          ? { grid }
+          : isGraph
+            ? { graph }
+            : isSearch
+              ? { array, target }
+              : { array },
         summary: {
           steps: steps.length,
           comparisons: lastStep.operations.comparisons,
@@ -105,8 +127,10 @@ export default function Visualizer() {
       algorithmId,
       algorithm.name,
       isGraph,
+      isGrid,
       isSearch,
       graph,
+      grid,
       array,
       target,
       search,
@@ -192,7 +216,14 @@ export default function Visualizer() {
                 value={algorithmId}
                 onChange={visualizer.setAlgorithm}
               />
-              {isGraph ? (
+              {isGrid ? (
+                <GridInputs
+                  grid={grid}
+                  onGridChange={visualizer.setGrid}
+                  tool={gridTool}
+                  onToolChange={setGridTool}
+                />
+              ) : isGraph ? (
                 <GraphInputs
                   graph={graph}
                   onGraphChange={visualizer.setGraph}
@@ -219,7 +250,14 @@ export default function Visualizer() {
 
         <main className="min-w-0 space-y-6">
           <Panel>
-            {isGraph ? (
+            {isGrid ? (
+              <GridVisualizer
+                step={step}
+                grid={grid}
+                onGridChange={visualizer.setGrid}
+                tool={gridTool}
+              />
+            ) : isGraph ? (
               <GraphVisualizer
                 step={step}
                 vertices={graph.vertices}
@@ -255,6 +293,7 @@ export default function Visualizer() {
                   operations={step.operations}
                   size={isGraph ? graph.vertices : array.length}
                   isGraph={isGraph}
+                  isGrid={isGrid}
                 />
               </div>
             )}
@@ -285,10 +324,15 @@ export default function Visualizer() {
         <aside className="min-w-0 space-y-6 lg:col-span-2 2xl:col-span-1">
           <Panel>
             <Tabs defaultValue="log">
-              <TabsList className="grid! w-full grid-cols-3">
+              {/* The math panels are about arrays and graphs, not grids */}
+              <TabsList
+                className={`grid! w-full ${isGrid ? "grid-cols-1" : "grid-cols-3"}`}
+              >
                 <TabsTrigger value="log">Step log</TabsTrigger>
-                <TabsTrigger value="math">Math</TabsTrigger>
-                <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
+                {!isGrid && <TabsTrigger value="math">Math</TabsTrigger>}
+                {!isGrid && (
+                  <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
+                )}
               </TabsList>
               <TabsContent value="log" className="pt-2">
                 <StepLog

@@ -1,5 +1,7 @@
 // Input generation, parsing and URL (de)serialisation for the visualizer.
 
+import { decodeCell, decodeCells, encodeCells, normalizeGrid } from "./grid.js";
+
 export const ARRAY_LIMITS = {
   minSize: 2,
   maxSize: 50,
@@ -185,6 +187,15 @@ export function readParams(params, defaults) {
     result.start = start;
   }
   if (params.has("directed")) result.directed = params.get("directed") === "1";
+  if (params.has("s") || params.has("w")) {
+    const start = decodeCell(params.get("s"));
+    const end = decodeCell(params.get("e"));
+    const walls = decodeCells(params.get("w"));
+    const weights = decodeCells(params.get("h"));
+    if (start !== null && end !== null && start !== end && walls && weights) {
+      result.grid = normalizeGrid({ start, end, walls, weights });
+    }
+  }
   return result;
 }
 
@@ -197,9 +208,15 @@ export function buildParams({
   edges,
   start,
   directed,
+  grid,
 }) {
   const params = new URLSearchParams({ algo: algorithm });
-  if (kind === "graph") {
+  if (kind === "grid") {
+    params.set("s", grid.start.toString(36));
+    params.set("e", grid.end.toString(36));
+    if (grid.walls.length) params.set("w", encodeCells(grid.walls));
+    if (grid.weights.length) params.set("h", encodeCells(grid.weights));
+  } else if (kind === "graph") {
     params.set("v", String(vertices));
     params.set("edges", edges.map((edge) => formatEdge(edge, true)).join("_"));
     params.set("start", String(start));

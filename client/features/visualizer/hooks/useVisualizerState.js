@@ -8,6 +8,7 @@ import {
   generateGraphEdges,
   readParams,
 } from "../utils/inputs";
+import { defaultGrid } from "../utils/grid";
 
 export const DEFAULT_ALGORITHM = "bubble-sort";
 
@@ -21,6 +22,7 @@ function createDefaults() {
     edges: generateGraphEdges(6),
     start: 0,
     directed: false,
+    grid: defaultGrid(),
   };
 }
 
@@ -76,5 +78,6 @@ export function useVisualizerState() {
     setArray: (array) => update({ array }),
     setTarget: (target) => update({ target }),
     setGraph: (graph) => update(graph),
+    setGrid: (grid) => update({ grid }),
   };
 }

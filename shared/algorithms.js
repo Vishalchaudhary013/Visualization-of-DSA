@@ -661,6 +661,219 @@ dfs(v)
       "Course prerequisite planning",
     ],
   },
+  "a-star": {
+    id: "a-star",
+    name: "A* Search",
+    description:
+      "Finds the cheapest path on a grid by exploring cells in order of cost so far plus a guess of the distance left.",
+    category: "pathfinding",
+    complexity: {
+      time: { best: "O(d)", average: "O(E log V)", worst: "O(E log V)" },
+      space: "O(V)",
+    },
+    pseudoCode: `aStar(grid, start, goal)
+  g[start] = 0; open = {start}
+  while open is not empty
+    current = cell in open with the lowest f = g + h
+    if current == goal: follow parents back to start, done
+    for each neighbour n of current that is not a wall
+      cost = g[current] + cost(n)   // 1, or 5 for a heavy cell
+      if cost < g[n]: g[n] = cost; parent[n] = current; add n to open
+  no path: the goal is walled off`,
+    jsCode: `function aStar(grid, start, goal) {
+  // grid.neighbours(cell) -> open cells, grid.cost(cell) -> 1 or 5
+  const h = (cell) => manhattan(cell, goal);
+  const g = new Map([[start, 0]]);
+  const parent = new Map();
+  const open = [{ cell: start, f: h(start) }]; // use a binary heap for big grids
+  const closed = new Set();
+  while (open.length) {
+    open.sort((a, b) => a.f - b.f);
+    const { cell } = open.shift();
+    if (closed.has(cell)) continue;
+    if (cell === goal) return buildPath(parent, goal);
+    closed.add(cell);
+    for (const next of grid.neighbours(cell)) {
+      const cost = g.get(cell) + grid.cost(next);
+      if (cost < (g.get(next) ?? Infinity)) {
+        g.set(next, cost);
+        parent.set(next, cell);
+        open.push({ cell: next, f: cost + h(next) });
+      }
+    }
+  }
+  return null; // no path
+}`,
+    difficulty: "advanced",
+    tags: ["pathfinding", "heuristic", "grid", "optimal"],
+    howItWorks: [
+      "Every cell gets g = the cheapest known cost from the start, and h = a guess of the distance to the goal (Manhattan distance).",
+      "Always explore the frontier cell with the smallest f = g + h: the most promising one.",
+      "Update neighbours when going through the current cell is cheaper.",
+      "Because h never overestimates, the first time the goal is explored the path is optimal.",
+      "It explores far fewer cells than Dijkstra by heading towards the goal.",
+    ],
+    useCases: [
+      "Game AI and unit movement",
+      "Route planning on maps",
+      "Robot navigation",
+    ],
+  },
+  "grid-dijkstra": {
+    id: "grid-dijkstra",
+    name: "Dijkstra on a Grid",
+    description:
+      "Finds the cheapest path on a grid by always exploring the cell with the lowest cost so far, spreading out evenly in every direction.",
+    category: "pathfinding",
+    complexity: {
+      time: { best: "O(E log V)", average: "O(E log V)", worst: "O(E log V)" },
+      space: "O(V)",
+    },
+    pseudoCode: `dijkstra(grid, start, goal)
+  g[start] = 0; open = {start}
+  while open is not empty
+    current = cell in open with the lowest cost g
+    if current == goal: follow parents back to start, done
+    for each neighbour n of current that is not a wall
+      cost = g[current] + cost(n)   // 1, or 5 for a heavy cell
+      if cost < g[n]: g[n] = cost; parent[n] = current; add n to open
+  no path: the goal is walled off`,
+    jsCode: `function dijkstraGrid(grid, start, goal) {
+  const g = new Map([[start, 0]]);
+  const parent = new Map();
+  const open = [{ cell: start, g: 0 }];
+  const closed = new Set();
+  while (open.length) {
+    open.sort((a, b) => a.g - b.g);
+    const { cell } = open.shift();
+    if (closed.has(cell)) continue;
+    if (cell === goal) return buildPath(parent, goal);
+    closed.add(cell);
+    for (const next of grid.neighbours(cell)) {
+      const cost = g.get(cell) + grid.cost(next);
+      if (cost < (g.get(next) ?? Infinity)) {
+        g.set(next, cost);
+        parent.set(next, cell);
+        open.push({ cell: next, g: cost });
+      }
+    }
+  }
+  return null;
+}`,
+    difficulty: "advanced",
+    tags: ["pathfinding", "grid", "optimal", "weighted"],
+    howItWorks: [
+      "Start with cost 0 at the start cell.",
+      "Always explore the frontier cell with the lowest cost so far.",
+      "Entering a normal cell costs 1, a heavy cell costs 5.",
+      "It finds the cheapest path but has no sense of direction, so it explores a growing 'circle' around the start.",
+    ],
+    useCases: [
+      "Cheapest routes when terrain has different costs",
+      "Baseline to compare A* against",
+    ],
+  },
+  "grid-bfs": {
+    id: "grid-bfs",
+    name: "BFS on a Grid",
+    description:
+      "Explores the grid ring by ring from the start with a queue, finding the path with the fewest moves (ignoring cell costs).",
+    category: "pathfinding",
+    complexity: {
+      time: { best: "O(V + E)", average: "O(V + E)", worst: "O(V + E)" },
+      space: "O(V)",
+    },
+    pseudoCode: `bfs(grid, start, goal)
+  queue = [start]; seen = {start}
+  while open is not empty
+    current = queue.dequeue()   // oldest cell first
+    if current == goal: follow parents back to start, done
+    for each neighbour n of current that is not a wall or seen
+      parent[n] = current; seen.add(n)
+      add n to the back of the queue
+  no path: the goal is walled off`,
+    jsCode: `function bfsGrid(grid, start, goal) {
+  const parent = new Map();
+  const seen = new Set([start]);
+  const queue = [start];
+  while (queue.length) {
+    const cell = queue.shift();
+    if (cell === goal) return buildPath(parent, goal);
+    for (const next of grid.neighbours(cell)) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        parent.set(next, cell);
+        queue.push(next);
+      }
+    }
+  }
+  return null;
+}`,
+    difficulty: "intermediate",
+    tags: ["pathfinding", "grid", "queue", "unweighted"],
+    howItWorks: [
+      "Put the start in a queue.",
+      "Take the oldest cell from the queue and add its unseen neighbours to the back.",
+      "Cells come out in order of how many moves they are from the start.",
+      "The first path to reach the goal has the fewest moves, but heavy cells are treated like normal ones.",
+    ],
+    useCases: [
+      "Shortest paths when every move costs the same",
+      "Flood fill, 'paint bucket' tools",
+      "Maze solving",
+    ],
+  },
+  "greedy-best-first": {
+    id: "greedy-best-first",
+    name: "Greedy Best-First Search",
+    description:
+      "Rushes towards the goal by always exploring the cell that looks closest to it. Fast, but the path it finds is not always the shortest.",
+    category: "pathfinding",
+    complexity: {
+      time: { best: "O(d)", average: "O(E log V)", worst: "O(E log V)" },
+      space: "O(V)",
+    },
+    pseudoCode: `greedyBestFirst(grid, start, goal)
+  open = {start}; seen = {start}
+  while open is not empty
+    current = cell in open with the smallest h (closest guess)
+    if current == goal: follow parents back to start, done
+    for each neighbour n of current that is not a wall or seen
+      parent[n] = current; seen.add(n)
+      add n to open
+  no path: the goal is walled off`,
+    jsCode: `function greedyBestFirst(grid, start, goal) {
+  const h = (cell) => manhattan(cell, goal);
+  const parent = new Map();
+  const seen = new Set([start]);
+  const open = [start];
+  while (open.length) {
+    open.sort((a, b) => h(a) - h(b));
+    const cell = open.shift();
+    if (cell === goal) return buildPath(parent, goal);
+    for (const next of grid.neighbours(cell)) {
+      if (!seen.has(next)) {
+        seen.add(next);
+        parent.set(next, cell);
+        open.push(next);
+      }
+    }
+  }
+  return null;
+}`,
+    difficulty: "intermediate",
+    tags: ["pathfinding", "heuristic", "grid", "not optimal"],
+    howItWorks: [
+      "Only the guess h (distance to the goal) decides what to explore next; the cost so far is ignored.",
+      "It heads straight for the goal and often explores very few cells.",
+      "Walls in the way can lead it into dead ends, and the path can be longer than necessary.",
+      "Compare it with A*, which balances the guess with the real cost.",
+    ],
+    useCases: [
+      "Quick 'good enough' paths",
+      "Showing why A* adds the cost so far",
+    ],
+  },
 };
 
 export const ALGORITHM_CATEGORIES = {
@@ -668,6 +881,7 @@ export const ALGORITHM_CATEGORIES = {
   searching: "Searching",
   "graph-traversal": "Graph Traversal",
   "graph-algorithms": "Weighted & Directed Graphs",
+  pathfinding: "Grid Pathfinding",
 };
 
 export const DIFFICULTIES = {
