@@ -1,10 +1,19 @@
 import bcrypt from "bcryptjs";
+import mongoose from "mongoose";
 import { User } from "../models/User.js";
 import { HistoryEntry } from "../models/HistoryEntry.js";
-import { clearSessionCookie, setSessionCookie } from "../utils/session.js";
+import {
+  SESSION_COOKIE,
+  clearSessionCookie,
+  readSessionToken,
+  setSessionCookie,
+} from "../utils/session.js";
 
 const HASH_ROUNDS = 12;
 const INVALID_LOGIN = "Email or password is incorrect.";
+// Compared against when the email is unknown, so both cases take the same time
+// and response timing doesn't reveal which emails have accounts
+const DUMMY_HASH = bcrypt.hashSync("not-a-real-password", HASH_ROUNDS);
 
 // POST /api/auth/register { name, email, password } -> { user }
 export const register = async (req, res) => {
@@ -25,8 +34,12 @@ export const register = async (req, res) => {
 export const login = async (req, res) => {
   const { email, password } = req.body;
   const user = await User.findOne({ email }).select("+passwordHash");
-  // Same message whether the email or the password is wrong
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+  const matches = await bcrypt.compare(
+    password,
+    user?.passwordHash ?? DUMMY_HASH,
+  );
+  // Same message (and timing) whether the email or the password is wrong
+  if (!user || !matches) {
     return res.status(401).json({ error: INVALID_LOGIN });
   }
   setSessionCookie(res, user.id);
@@ -39,16 +52,19 @@ export const logout = (_req, res) => {
   res.status(204).end();
 };
 
-// GET /api/auth/me -> { user }
+// GET /api/auth/me -> { user } or { user: null } for guests (not an error,
+// so every guest page load doesn't log a failed request)
 export const getMe = async (req, res) => {
-  const user = await User.findById(req.userId);
+  const userId = readSessionToken(req.cookies?.[SESSION_COOKIE]);
+  const user = mongoose.isValidObjectId(userId)
+    ? await User.findById(userId)
+    : null;
   if (!user) {
-    clearSessionCookie(res);
-    return res.status(401).json({ error: "Please log in to continue." });
+    if (userId) clearSessionCookie(res);
+    return res.json({ user: null });
   }
   res.json({ user: user.toPublic() });
 };
-
 // PATCH /api/auth/me { name } -> { user }
 export const updateMe = async (req, res) => {
   const user = await User.findByIdAndUpdate(

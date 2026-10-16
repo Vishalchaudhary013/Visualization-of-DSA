@@ -10,7 +10,7 @@ While the starter comes with a express server, only create endpoint when strictl
 - **Frontend**: React 19 + React Router 7 (spa) + JavaScript + Vite 8 (`@vitejs/plugin-react`) + Tailwind CSS 4.3 (CSS-first config via `@tailwindcss/vite`, no `tailwind.config.js`) + Motion (`motion/react`) + next-themes
 - **Backend**: Node + Express 5; in development it serves the app through Vite middleware
 - **Database**: MongoDB via Mongoose (users + history). Optional: without `MONGODB_URI` the app runs and only accounts/history are disabled (their routes return 503)
-- **Auth**: email + password (bcryptjs), JWT in an httpOnly `dsa_session` cookie, zod request validation, express-rate-limit on credential routes
+- **Auth**: email + password (bcryptjs), JWT in an httpOnly `dsa_session` cookie, zod request validation, express-rate-limit on credential routes (only failed attempts count; unknown emails take the same time as wrong passwords)
 - **Testing**: Vitest
 - **UI**: Radix UI + TailwindCSS + react-icons (Lucide set, `react-icons/lu`)
 
@@ -132,7 +132,7 @@ className={`rounded-md px-4 ${isActive ? "bg-primary" : "bg-muted"} ${className 
 #### API Routes
 - `POST /api/assistant` - Q&A used by the assistant chat (`{ question, algorithmId? }`, id of the algorithm or data structure on screen)
 - `POST /api/auth/register` `{ name, email, password }`, `POST /api/auth/login` `{ email, password }`, `POST /api/auth/logout`
-- `GET /api/auth/me`, `PATCH /api/auth/me` `{ name }`, `PUT /api/auth/password` `{ currentPassword, newPassword }`, `DELETE /api/auth/me` `{ password }`
+- `GET /api/auth/me` (`{ user }`, or `{ user: null }` for guests), `PATCH /api/auth/me` `{ name }`, `PUT /api/auth/password` `{ currentPassword, newPassword }`, `DELETE /api/auth/me` `{ password }`
 - `GET /api/history?page&limit&kind&itemId`, `GET /api/history/stats`, `POST /api/history`, `PATCH /api/history/:id`, `DELETE /api/history/:id`, `DELETE /api/history` (all require a session)
 - `GET /api/ping` - Health check
 
@@ -147,7 +147,9 @@ npm run dev     # Start Express + Vite dev server on port 8080
 npm run build   # Build the client into dist/spa
 npm start       # Start production server (serves dist/spa + API)
 npm test        # Vitest: client + server projects (vitest.config.js). API integration tests use
-                #   MONGODB_TEST_URI or mongodb-memory-server, and are skipped when neither is available
+                #   MONGODB_TEST_URI or mongodb-memory-server, and are skipped when neither is available.
+                #   With Docker: docker run -d -p 27017:27017 mongo:8
+                #   then MONGODB_TEST_URI=mongodb://127.0.0.1:27017 npm test
 ```
 
 ## Adding Features

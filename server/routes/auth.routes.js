@@ -21,10 +21,12 @@ import {
 
 const router = Router();
 
-// Slows down password guessing: 20 attempts per 15 minutes per IP
+// Slows down password guessing: 20 failed attempts per 15 minutes per IP.
+// Successful logins/sign-ups don't count, so normal use is never blocked.
 const credentialsLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
+  skipSuccessfulRequests: true,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: {
@@ -42,7 +44,7 @@ router.post(
   register,
 );
 router.post("/login", credentialsLimiter, validateBody(loginSchema), login);
-router.get("/me", requireAuth, getMe);
+router.get("/me", getMe);
 router.patch("/me", requireAuth, validateBody(updateProfileSchema), updateMe);
 router.delete(
   "/me",

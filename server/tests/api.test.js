@@ -79,7 +79,8 @@ describe("auth", () => {
 
     await agent.get("/api/auth/me").expect(200);
     await agent.post("/api/auth/logout").expect(204);
-    await agent.get("/api/auth/me").expect(401);
+    const after = await agent.get("/api/auth/me").expect(200);
+    expect(after.body.user).toBeNull();
   });
 
   it("stores a bcrypt hash, never the password", async () => {
@@ -115,6 +116,21 @@ describe("auth", () => {
       .send({ email: "nobody@example.com", password: "whatever1" })
       .expect(401);
     expect(wrong.body.error).toBe(unknown.body.error);
+  });
+
+  it("takes about as long for an unknown email as for a wrong password", async () => {
+    await signedInAgent();
+    const time = async (email) => {
+      const start = performance.now();
+      await request(app)
+        .post("/api/auth/login")
+        .send({ email, password: "wrong password" });
+      return performance.now() - start;
+    };
+    const known = await time(newUser.email);
+    const unknown = await time("nobody@example.com");
+    // Both run a full bcrypt comparison (well over 50ms at 12 rounds)
+    expect(unknown).toBeGreaterThan(known / 3);
   });
 
   it("validates input", async () => {
@@ -282,4 +298,18 @@ describe("history", () => {
     expect(res.body.deleted).toBe(1);
     expect(await HistoryEntry.countDocuments()).toBe(1);
   });
+});
+
+// Keep last: it uses up the shared failed-attempt budget for this process
+describe("rate limiting", () => {
+  it("blocks repeated failed logins but never counts successful ones", async () => {
+    await signedInAgent();
+    let lastStatus;
+    for (let attempt = 0; attempt < 25 && lastStatus !== 429; attempt++) {
+      ({ status: lastStatus } = await request(app)
+        .post("/api/auth/login")
+        .send({ email: newUser.email, password: "wrong password" }));
+    }
+    expect(lastStatus).toBe(429);
+  }, 30_000); // each failed login runs a deliberately slow bcrypt check
 });

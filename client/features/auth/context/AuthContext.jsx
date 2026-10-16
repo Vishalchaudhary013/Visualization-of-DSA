@@ -22,7 +22,7 @@ export function AuthProvider({ children }) {
     api("/auth/me")
       .then(({ user: current }) => {
         setUser(current);
-        setStatus("signed-in");
+        setStatus(current ? "signed-in" : "signed-out");
       })
       .catch((error) =>
         setStatus(error.status === 503 ? "unavailable" : "signed-out"),
