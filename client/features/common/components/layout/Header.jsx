@@ -4,6 +4,7 @@ import {
   LuSparkles as Sparkles,
   LuChartColumn as Chart,
   LuBoxes as Boxes,
+  LuColumns2 as Columns,
 } from "react-icons/lu";
 import { buttonVariants } from "@/features/common/components/ui/button";
 import { UserMenu } from "@/features/auth/components/UserMenu";
@@ -12,6 +13,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const NAV_ITEMS = [
   { to: "/", label: "Home", icon: Home, end: true },
   { to: "/visualizer", label: "Algorithms", icon: Chart },
+  { to: "/compare", label: "Compare", icon: Columns },
   { to: "/data-structures", label: "Data Structures", icon: Boxes },
 ];
 

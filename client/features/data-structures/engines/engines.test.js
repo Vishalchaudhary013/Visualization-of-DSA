@@ -197,3 +197,147 @@ describe("binary search tree", () => {
     );
   });
 });
+
+describe("hash table", () => {
+  it("chains collisions in the bucket chosen by x mod 7", () => {
+    let state = ENGINES["hash-table"].empty();
+    for (const v of [3, 10, 17, 5])
+      state = run("hash-table", state, "insert", v).state;
+    expect(state.buckets[3].map((item) => item.value)).toEqual([3, 10, 17]);
+    expect(state.buckets[5].map((item) => item.value)).toEqual([5]);
+    // Searching 17 checks 3 and 10 first, then finds it
+    const search = run("hash-table", state, "search", 17);
+    expect(search.steps.filter((s) => s.highlight.compare.length)).toHaveLength(
+      2,
+    );
+    expect(search.steps.at(-1).output).toEqual([17]);
+    expect(
+      run("hash-table", state, "search", 24).steps.at(-1).output,
+    ).toBeUndefined();
+  });
+
+  it("ignores duplicates and deletes from the middle of a chain", () => {
+    let state = ENGINES["hash-table"].fromValues([3, 10, 17]);
+    expect(
+      values("hash-table", run("hash-table", state, "insert", 10).state),
+    ).toEqual([3, 10, 17]);
+    state = run("hash-table", state, "remove", 10).state;
+    expect(values("hash-table", state)).toEqual([3, 17]);
+    expect(
+      values("hash-table", run("hash-table", state, "remove", 99).state),
+    ).toEqual([3, 17]);
+  });
+
+  it("round-trips through values", () => {
+    const state = ENGINES["hash-table"].fromValues([15, 22, 8, 29, 4, 36]);
+    const again = ENGINES["hash-table"].fromValues(values("hash-table", state));
+    expect(again.buckets.map((b) => b.map((i) => i.value))).toEqual(
+      state.buckets.map((b) => b.map((i) => i.value)),
+    );
+  });
+});
+
+describe("trie", () => {
+  const words = ["car", "card", "care", "cat", "dog"];
+  const nodeCount = (state) => Object.keys(state.nodes).length;
+
+  it("shares prefixes", () => {
+    let state = ENGINES.trie.empty();
+    for (const w of words) state = run("trie", state, "insert", w).state;
+    // root + c,a,r,d,e,t + d,o,g
+    expect(nodeCount(state)).toBe(10);
+    expect(values("trie", state)).toEqual([
+      "car",
+      "card",
+      "care",
+      "cat",
+      "dog",
+    ]);
+  });
+
+  it("tells words from prefixes", () => {
+    const state = ENGINES.trie.fromValues(words);
+    expect(run("trie", state, "search", "car").steps.at(-1).output).toEqual([
+      "car",
+    ]);
+    expect(
+      run("trie", state, "search", "ca").steps.at(-1).output,
+    ).toBeUndefined();
+    expect(
+      run("trie", state, "search", "cow").steps.at(-1).explanation,
+    ).toMatch(/No 'o' child/);
+    expect(run("trie", state, "startsWith", "car").steps.at(-1).output).toEqual(
+      ["car", "card", "care"],
+    );
+    expect(
+      run("trie", state, "startsWith", "x").steps.at(-1).output,
+    ).toBeUndefined();
+  });
+
+  it("deletes and prunes only unused nodes", () => {
+    let state = ENGINES.trie.fromValues(words);
+    state = run("trie", state, "remove", "card").state; // prunes 'd'
+    expect(nodeCount(state)).toBe(9);
+    state = run("trie", state, "remove", "car").state; // 'r' still used by "care"
+    expect(nodeCount(state)).toBe(9);
+    expect(values("trie", state)).toEqual(["care", "cat", "dog"]);
+    state = run("trie", state, "remove", "dog").state; // prunes g, o, d
+    expect(nodeCount(state)).toBe(6);
+    expect(values("trie", run("trie", state, "remove", "zebra").state)).toEqual(
+      ["care", "cat"],
+    );
+  });
+
+  it("does not mutate earlier states", () => {
+    const before = ENGINES.trie.fromValues(words);
+    const snapshot = JSON.stringify(before);
+    run("trie", before, "remove", "card");
+    run("trie", before, "insert", "cards");
+    expect(JSON.stringify(before)).toBe(snapshot);
+  });
+});
+
+describe("union-find", () => {
+  const root = (parent, x) => (parent[x] === x ? x : root(parent, parent[x]));
+
+  it("unions sets and answers connectivity", () => {
+    let state = ENGINES["union-find"].fromValues([0, 1, 2, 3, 4, 5]);
+    state = run("union-find", state, "union", [0, 1]).state;
+    state = run("union-find", state, "union", [2, 3]).state;
+    state = run("union-find", state, "union", [1, 3]).state;
+    expect(
+      run("union-find", state, "connected", [0, 2]).steps.at(-1).output,
+    ).toEqual(["yes"]);
+    expect(
+      run("union-find", state, "connected", [0, 5]).steps.at(-1).output,
+    ).toEqual(["no"]);
+    const sets = new Set(state.parent.map((_, x) => root(state.parent, x)));
+    expect(sets.size).toBe(3); // {0,1,2,3}, {4}, {5}
+  });
+
+  it("hangs the smaller tree under the larger one", () => {
+    // Set of 3 rooted at 0, single element 3
+    const state = ENGINES["union-find"].fromValues([0, 0, 0, 3]);
+    const next = run("union-find", state, "union", [3, 1]).state;
+    expect(next.parent[3]).toBe(0);
+  });
+
+  it("find returns the root and halves the path", () => {
+    // Chain 4 -> 3 -> 2 -> 1 -> 0
+    const state = ENGINES["union-find"].fromValues([0, 0, 1, 2, 3]);
+    const result = run("union-find", state, "find", 4);
+    expect(result.steps.at(-1).output).toEqual([0]);
+    expect(result.state.parent[4]).toBe(2); // pointed at its grandparent
+    expect(root(result.state.parent, 4)).toBe(0);
+  });
+
+  it("adds elements, rejects unknown ones and invalid parent arrays", () => {
+    let state = ENGINES["union-find"].empty();
+    state = run("union-find", state, "add").state;
+    state = run("union-find", state, "add").state;
+    expect(state.parent).toEqual([0, 1]);
+    expect(run("union-find", state, "find", 5).steps[0].error).toBe(true);
+    // 0 -> 1 -> 0 is a cycle: fall back to singletons
+    expect(ENGINES["union-find"].fromValues([1, 0]).parent).toEqual([0, 1]);
+  });
+});

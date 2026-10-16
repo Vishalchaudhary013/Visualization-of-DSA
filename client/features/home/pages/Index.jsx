@@ -3,7 +3,7 @@ import {
   LuArrowRight as ArrowRight,
   LuChartColumn as BarChart,
   LuCode as Code,
-  LuKeyboard as Keyboard,
+  LuColumns2 as Columns,
   LuShare2 as Share,
   LuSparkles as Sparkles,
   LuListOrdered as ListOrdered,
@@ -17,7 +17,7 @@ const FEATURES = [
     icon: BarChart,
     title: "Animated step by step",
     description:
-      "Watch every comparison, swap and visit. Switch between boxes and bar charts for big inputs.",
+      "Watch every comparison, swap and visit, with keyboard controls (Space, arrows) and boxes or bars for big inputs.",
   },
   {
     icon: Code,
@@ -38,9 +38,10 @@ const FEATURES = [
       "Type values, pick best/worst-case shapes, or build and drag your own graph.",
   },
   {
-    icon: Keyboard,
-    title: "Keyboard controls",
-    description: "Space to play, arrow keys to step, + and - to change speed.",
+    icon: Columns,
+    title: "Compare side by side",
+    description:
+      "Race two algorithms on the same input, or all sorting algorithms at once, and see which does less work.",
   },
   {
     icon: Share,

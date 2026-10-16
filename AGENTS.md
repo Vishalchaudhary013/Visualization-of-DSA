@@ -37,10 +37,12 @@ client/                          # React SPA frontend (Vite root)
     ├── assistant/components/    # AssistantChat (floating Q&A, calls POST /api/assistant)
     ├── auth/                    # AuthContext (useAuth), Login/Register/Profile pages, RequireAuth, UserMenu, AccountSettings
     ├── history/                 # API calls, useHistorySync (auto-saves runs), HistoryList, SaveStatus
+    ├── compare/                 # /compare: two algorithms on one input (CompareLane), RaceChart of all sorts/searches
     ├── data-structures/
     │   ├── pages/               # DataStructuresIndex, DataStructurePage (/data-structures/:id)
-    │   ├── engines/             # Stack, queue, heap, linked list, BST operations -> steps (+ tests)
-    │   └── components/views/    # LinearViews (stack/queue/list), TreeViews (heap/BST)
+    │   ├── engines/             # Stack, queue, heap, linked list, BST, hash table, trie, union-find -> steps (+ tests)
+    │   ├── utils/values.js      # Parses the value box (numbers, words, pairs) and ?values= (+ tests)
+    │   └── components/views/    # LinearViews (stack/queue/list), TreeViews (heap/BST/trie/union-find), HashTableView
     └── visualizer/
         ├── pages/Visualizer.jsx
         ├── algorithms/          # Step generators (sorting, searching, graph, weightedGraph), recorder, registry (index.js), tests
@@ -198,6 +200,12 @@ router.use("/my-endpoint", myRoutes); // -> GET /api/my-endpoint
 const response = await fetch("/api/my-endpoint");
 const data = await response.json();
 ```
+
+### Adding a data structure
+
+1. Add metadata to `shared/dataStructures.js`: operations with `pseudoCode`, `complexity`, `needsValue`, optional `arity: 2`; set `valueKind: "word"` if values are words.
+2. Write an engine in `client/features/data-structures/engines/` exposing `empty`, `fromValues`, `toValues`, `operations` (and optionally `randomValues`); register it in `engines/index.js`.
+3. Add a view to `VIEWS` (and starter values) in `pages/DataStructurePage.jsx`. The shared engine tests check pseudocode lines automatically.
 
 ### New Page Route
 1. Create component in `client/features/<feature>/pages/MyPage.jsx`

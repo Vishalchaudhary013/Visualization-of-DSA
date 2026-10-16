@@ -64,6 +64,16 @@ const STRUCTURE_KEYWORDS = [
   { id: "stack", words: ["stack", "stacks", "lifo"] },
   { id: "queue", words: ["queue", "queues", "fifo", "enqueue", "dequeue"] },
   { id: "heap", words: ["heap", "heaps", "priority"] },
+  {
+    id: "hash-table",
+    words: ["hash", "hashing", "hashmap", "hashtable", "dictionary"],
+  },
+  { id: "trie", words: ["trie", "tries", "prefix", "autocomplete"] },
+  {
+    id: "union-find",
+    words: ["union", "disjoint", "unionfind"],
+    all: ["union", "find"],
+  },
 ];
 
 function findMatchingStructures(question, { strongOnly = false } = {}) {
@@ -146,7 +156,7 @@ function buildFallbackMessage() {
       ([category, items]) => `- ${category}: ${items.slice(0, 4).join(", ")}`,
     )
     .join("\n");
-  return `I can answer questions about sorting, searching and graph algorithms, and about stacks, queues, heaps, linked lists and binary search trees. Try referencing an algorithm name (e.g., "Explain quick sort").\n\nAvailable families:\n${categoryLines}`;
+  return `I can answer questions about sorting, searching and graph algorithms, and about stacks, queues, heaps, linked lists, binary search trees, hash tables, tries and union-find. Try referencing an algorithm name (e.g., "Explain quick sort").\n\nAvailable families:\n${categoryLines}`;
 }
 
 // POST /api/assistant  { question, algorithmId? } -> { reply, matchedIds }

@@ -308,4 +308,186 @@ export const DATA_STRUCTURES = {
       "Foundation for balanced trees (AVL, red-black)",
     ],
   },
+  "hash-table": {
+    id: "hash-table",
+    name: "Hash Table",
+    description:
+      "Stores values in buckets chosen by a hash function, so lookups jump straight to the right bucket instead of scanning everything.",
+    category: "data-structure",
+    difficulty: "intermediate",
+    capacity: 21,
+    buckets: 7,
+    tags: ["hashing", "separate chaining", "O(1) average"],
+    operations: {
+      insert: {
+        label: "Insert",
+        needsValue: true,
+        complexity: "O(1) avg",
+        pseudoCode: `insert(x)
+  i = hash(x) = x mod m
+  for each item in bucket[i]
+    if item == x: already stored, stop
+  append x to bucket[i]`,
+      },
+      search: {
+        label: "Search",
+        needsValue: true,
+        complexity: "O(1) avg",
+        pseudoCode: `search(x)
+  i = hash(x) = x mod m
+  for each item in bucket[i]
+    if item == x: found
+  not found`,
+      },
+      remove: {
+        label: "Delete",
+        needsValue: true,
+        complexity: "O(1) avg",
+        pseudoCode: `delete(x)
+  i = hash(x) = x mod m
+  for each item in bucket[i]
+    if item == x: unlink it from the chain, stop
+  not found`,
+      },
+    },
+    howItWorks: [
+      "A hash function turns a value into a bucket number; here hash(x) = x mod 7.",
+      "Insert, search and delete only look inside that one bucket.",
+      "Two values can land in the same bucket (a collision); each bucket keeps a small chain (list) of them.",
+      "With a good hash and a low load factor (items ÷ buckets), chains stay short, so operations are O(1) on average. Real tables grow and rehash when the load factor gets high.",
+    ],
+    useCases: [
+      "Dictionaries / maps and sets in every language",
+      "Caches and memoization",
+      "Counting frequencies, finding duplicates",
+      "Database indexes",
+    ],
+  },
+  trie: {
+    id: "trie",
+    name: "Trie",
+    description:
+      "A tree of letters where each path from the root spells a word, so words that share a prefix share nodes.",
+    category: "data-structure",
+    difficulty: "intermediate",
+    capacity: 40,
+    valueKind: "word",
+    tags: ["prefix tree", "strings", "autocomplete"],
+    operations: {
+      insert: {
+        label: "Insert",
+        needsValue: true,
+        complexity: "O(L)",
+        pseudoCode: `insert(word)
+  node = root
+  for each letter c in word
+    if node has no child c: create it
+    node = node.children[c]
+  node.isEnd = true`,
+      },
+      search: {
+        label: "Search",
+        needsValue: true,
+        complexity: "O(L)",
+        pseudoCode: `search(word)
+  node = root
+  for each letter c in word
+    if node has no child c: not found
+    node = node.children[c]
+  found only if node.isEnd`,
+      },
+      startsWith: {
+        label: "Prefix search",
+        needsValue: true,
+        complexity: "O(L + k)",
+        pseudoCode: `startsWith(prefix)
+  node = root
+  for each letter c in prefix
+    if node has no child c: no word has this prefix
+    node = node.children[c]
+  collect every word below node`,
+      },
+      remove: {
+        label: "Delete",
+        needsValue: true,
+        complexity: "O(L)",
+        pseudoCode: `delete(word)
+  walk to the node for word; stop if missing or not a word end
+  node.isEnd = false
+  while node has no children, is not a word end and is not root
+    remove node from its parent; node = parent`,
+      },
+    },
+    howItWorks: [
+      "The root is empty; every edge below it adds one letter.",
+      "Words that start the same way share the same path, so 'car', 'card' and 'care' share c → a → r.",
+      "Nodes where a word ends are marked (✓): 'car' is a word, 'ca' is only a prefix.",
+      "Every operation walks one letter at a time, so it costs O(L) for a word of length L, no matter how many words are stored.",
+    ],
+    useCases: [
+      "Autocomplete and search suggestions",
+      "Spell checkers",
+      "Prefix matching (IP routing, phone directories)",
+      "Word games (Boggle, Scrabble solvers)",
+    ],
+  },
+  "union-find": {
+    id: "union-find",
+    name: "Union-Find",
+    description:
+      "Keeps track of which elements are in the same group (disjoint sets) and can merge groups or answer 'are these connected?' almost instantly.",
+    category: "data-structure",
+    difficulty: "advanced",
+    capacity: 12,
+    tags: ["disjoint set", "forest", "path compression"],
+    operations: {
+      union: {
+        label: "Union",
+        needsValue: true,
+        arity: 2,
+        complexity: "≈ O(1)",
+        pseudoCode: `union(a, b)
+  ra = find(a); rb = find(b)
+  if ra == rb: already in the same set
+  attach the smaller tree's root under the larger one
+  size[larger] = size[larger] + size[smaller]`,
+      },
+      find: {
+        label: "Find",
+        needsValue: true,
+        complexity: "≈ O(1)",
+        pseudoCode: `find(x)
+  while parent[x] != x
+    parent[x] = parent[parent[x]]   // path halving
+    x = parent[x]
+  return x`,
+      },
+      connected: {
+        label: "Connected?",
+        needsValue: true,
+        arity: 2,
+        complexity: "≈ O(1)",
+        pseudoCode: `connected(a, b)
+  return find(a) == find(b)`,
+      },
+      add: {
+        label: "Add element",
+        complexity: "O(1)",
+        pseudoCode: `add()
+  x = n; parent[x] = x; n = n + 1`,
+      },
+    },
+    howItWorks: [
+      "Each group is a tree; the root is the group's representative. parent[x] points one step up.",
+      "find(x) follows parents to the root. Path halving re-points nodes to their grandparent on the way, so later finds are faster.",
+      "union(a, b) finds both roots and hangs the smaller tree under the larger one, which keeps trees shallow.",
+      "With both tricks, each operation is effectively constant time (inverse Ackermann).",
+    ],
+    useCases: [
+      "Kruskal's minimum spanning tree (cycle check)",
+      "Connected components in networks",
+      "Grouping friends, pixels or accounts",
+      "Detecting cycles in undirected graphs",
+    ],
+  },
 };

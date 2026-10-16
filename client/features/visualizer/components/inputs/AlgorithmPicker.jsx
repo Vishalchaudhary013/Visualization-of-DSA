@@ -32,18 +32,33 @@ const GROUPS = Object.entries(ALGORITHM_CATEGORIES)
   }))
   .filter((group) => group.algorithms.length);
 
-export function AlgorithmPicker({ value, onChange }) {
+export function AlgorithmPicker({
+  value,
+  onChange,
+  id = "algorithm",
+  label = "Algorithm",
+  kinds,
+}) {
+  // Optionally limit the list to some kinds (e.g. only sort + search for compare)
+  const groups = kinds
+    ? GROUPS.map((group) => ({
+        ...group,
+        algorithms: group.algorithms.filter((algorithm) =>
+          kinds.includes(ALGORITHM_RUNNERS[algorithm.id].kind),
+        ),
+      })).filter((group) => group.algorithms.length)
+    : GROUPS;
   return (
     <div className="space-y-2">
-      <Label htmlFor="algorithm" className="font-semibold">
-        Algorithm
+      <Label htmlFor={id} className="font-semibold">
+        {label}
       </Label>
       <Select value={value} onValueChange={onChange}>
-        <SelectTrigger id="algorithm">
+        <SelectTrigger id={id}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {GROUPS.map((group) => (
+          {groups.map((group) => (
             <SelectGroup key={group.label}>
               <SelectLabel className="text-xs uppercase tracking-wide text-muted-foreground">
                 {group.label}

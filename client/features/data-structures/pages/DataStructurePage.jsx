@@ -33,7 +33,18 @@ import {
   QueueView,
   LinkedListView,
 } from "../components/views/LinearViews";
-import { HeapView, BstView } from "../components/views/TreeViews";
+import {
+  HeapView,
+  BstView,
+  TrieView,
+  UnionFindView,
+} from "../components/views/TreeViews";
+import { HashTableView } from "../components/views/HashTableView";
+import {
+  formatValue,
+  parseOperationValue,
+  parseValuesParam,
+} from "../utils/values";
 import { ROLE_STYLES } from "../components/views/roles";
 
 const VIEWS = {
@@ -42,6 +53,9 @@ const VIEWS = {
   heap: HeapView,
   "linked-list": LinkedListView,
   bst: BstView,
+  "hash-table": HashTableView,
+  trie: TrieView,
+  "union-find": UnionFindView,
 };
 
 const STARTER_VALUES = {
@@ -50,18 +64,14 @@ const STARTER_VALUES = {
   heap: [3, 9, 5, 14, 11, 7],
   "linked-list": [7, 13, 2],
   bst: [50, 30, 70, 20, 40, 60, 80],
+  "hash-table": [15, 22, 8, 29, 4, 36],
+  trie: ["car", "card", "care", "cat", "dog"],
+  // parent array: sets {0, 1, 2}, {3, 4}, {5, 6}, {7}
+  "union-find": [0, 0, 0, 3, 3, 5, 5, 7],
 };
 
 const randomValues = (count) =>
   Array.from({ length: count }, () => Math.floor(Math.random() * 99) + 1);
-
-function parseValues(text) {
-  if (!text) return null;
-  const values = text.split(",").map(Number);
-  return values.every((v) => Number.isInteger(v) && v >= 0 && v <= 999)
-    ? values.slice(0, 15)
-    : null;
-}
 
 const Panel = ({ title, aside, children, className = "" }) => (
   <section
@@ -91,6 +101,8 @@ function DataStructureWorkspace({ id, meta }) {
   const engine = ENGINES[id];
   const View = VIEWS[id];
   const isHeap = id === "heap";
+  const isWords = meta.valueKind === "word";
+  const hasPairs = Object.values(meta.operations).some((op) => op.arity === 2);
   const [searchParams, setSearchParams] = useSearchParams();
   const { pathname } = useLocation();
 
@@ -99,7 +111,8 @@ function DataStructureWorkspace({ id, meta }) {
   );
   const [structure, setStructure] = useState(() =>
     engine.fromValues(
-      parseValues(searchParams.get("values")) ?? STARTER_VALUES[id],
+      parseValuesParam(searchParams.get("values"), meta.valueKind) ??
+        STARTER_VALUES[id],
       { mode },
     ),
   );
@@ -156,16 +169,15 @@ function DataStructureWorkspace({ id, meta }) {
     const operation = meta.operations[name];
     let value;
     if (operation.needsValue) {
-      value = Number(valueText.trim());
-      if (
-        !valueText.trim() ||
-        !Number.isInteger(value) ||
-        value < 0 ||
-        value > 999
-      ) {
-        setInputError("Enter a whole number from 0 to 999");
+      const parsed = parseOperationValue(valueText, {
+        valueKind: meta.valueKind,
+        arity: operation.arity,
+      });
+      if (parsed.error) {
+        setInputError(parsed.error);
         return;
       }
+      value = parsed.value;
     }
     setInputError(null);
     const result = engine.operations[name](structure, value);
@@ -312,11 +324,15 @@ function DataStructureWorkspace({ id, meta }) {
                 (operation) => operation.needsValue,
               ) && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="ds-value">Value</Label>
+                  <Label htmlFor="ds-value">{isWords ? "Word" : "Value"}</Label>
                   <Input
                     id="ds-value"
-                    inputMode="numeric"
-                    placeholder="e.g. 42"
+                    inputMode={isWords ? "text" : "numeric"}
+                    autoCapitalize="none"
+                    autoComplete="off"
+                    placeholder={
+                      isWords ? "e.g. cart" : hasPairs ? "e.g. 3 5" : "e.g. 42"
+                    }
                     value={valueText}
                     onChange={(event) => {
                       setValueText(event.target.value);
@@ -343,6 +359,8 @@ function DataStructureWorkspace({ id, meta }) {
                     </p>
                   ) : (
                     <p className="text-xs text-muted-foreground">
+                      {hasPairs &&
+                        "Union and Connected? take two elements, e.g. 3 5. "}
                       Press Enter to{" "}
                       {Object.values(meta.operations)
                         .find((op) => op.needsValue)
@@ -375,7 +393,8 @@ function DataStructureWorkspace({ id, meta }) {
                   size="sm"
                   onClick={() =>
                     replaceContents(
-                      randomValues(id === "bst" || isHeap ? 7 : 4),
+                      engine.randomValues?.() ??
+                        randomValues(id === "bst" || isHeap ? 7 : 4),
                       "Filled with random values",
                     )
                   }
@@ -481,7 +500,8 @@ function DataStructureWorkspace({ id, meta }) {
                       }`}
                     >
                       {meta.operations[entry.operation].label.toLowerCase()}
-                      {entry.value !== undefined && `(${entry.value})`}
+                      {entry.value !== undefined &&
+                        `(${formatValue(entry.value)})`}
                       {entry.output?.length === 1 && ` → ${entry.output[0]}`}
                     </li>
                   ))}

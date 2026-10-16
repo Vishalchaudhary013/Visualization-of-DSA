@@ -39,8 +39,14 @@ function buildKeys(values) {
   });
 }
 
-export function ArrayVisualizer({ step, speed, markerLabel, isSearch }) {
-  const [mode, setMode] = useState("auto");
+export function ArrayVisualizer({
+  step,
+  speed,
+  markerLabel,
+  isSearch,
+  defaultMode = "auto",
+}) {
+  const [mode, setMode] = useState(defaultMode);
   if (!step) return null;
 
   const values = step.state;

@@ -9,6 +9,9 @@ const PREVIEWS = {
   heap: "3 → (9, 5) → (14, 11, 7)",
   "linked-list": "7 → 13 → 2 → null",
   bst: "50 → (30, 70)",
+  "hash-table": "[1] → 15 → 22 · [4] → 4",
+  trie: "c → a → r ✓ → (d ✓, e ✓)",
+  "union-find": "{0, 1, 2} {3, 4} {5, 6} {7}",
 };
 
 export default function DataStructuresIndex() {

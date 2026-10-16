@@ -10,7 +10,9 @@ const spring = { type: "spring", stiffness: 300, damping: 30 };
  * x is in [0, 1] across the width. Nodes are keyed by id so they glide when
  * they move (heap swaps, BST deletes).
  */
-function Tree({ nodes, highlight, emptyText }) {
+// Exported for the trie and union-find views. Optional per node: label (text
+// under it) and ring (double outline, e.g. a trie word end).
+export function Tree({ nodes, highlight, emptyText, minWidth = 0 }) {
   if (!nodes.length) {
     return (
       <p className="rounded-lg border border-dashed border-border px-4 py-16 text-center text-sm text-muted-foreground">
@@ -19,7 +21,7 @@ function Tree({ nodes, highlight, emptyText }) {
     );
   }
   const depth = Math.max(...nodes.map((node) => node.depth));
-  const width = Math.max(320, 2 ** Math.min(depth, 4) * 56);
+  const width = Math.max(320, 2 ** Math.min(depth, 4) * 56, minWidth);
   const height = (depth + 1) * LEVEL_HEIGHT + 20;
   const position = (node) => ({
     x: RADIUS + 8 + node.x * (width - 2 * (RADIUS + 8)),
@@ -65,6 +67,13 @@ function Tree({ nodes, highlight, emptyText }) {
               <circle
                 r={RADIUS + 6}
                 className={`${ROLE_STYLES[role].fill} opacity-25`}
+              />
+            )}
+            {node.ring && (
+              <circle
+                r={RADIUS + 4}
+                className="fill-none stroke-foreground"
+                strokeWidth={2}
               />
             )}
             <circle
@@ -171,5 +180,122 @@ export function BstView({ step }) {
       highlight={step.highlight}
       emptyText="Empty tree. Insert a value to start."
     />
+  );
+}
+
+/** Trie: letters as nodes, word ends drawn with a double ring, laid out by leaves. */
+export function TrieView({ step }) {
+  const { root, nodes: nodeMap } = step.state;
+  const nodes = [];
+  let leaf = 0;
+  // Leaves get consecutive slots; a parent sits above the middle of its children
+  const place = (id, depth, parentId) => {
+    const node = nodeMap[id];
+    const children = Object.keys(node.children).sort();
+    const entry = {
+      id,
+      value: id === root ? "•" : node.char,
+      depth,
+      parentId,
+      ring: node.end,
+    };
+    nodes.push(entry);
+    if (!children.length) {
+      entry.slot = leaf++;
+      return entry.slot;
+    }
+    const slots = children.map((char) =>
+      place(node.children[char], depth + 1, id),
+    );
+    entry.slot = (slots[0] + slots.at(-1)) / 2;
+    return entry.slot;
+  };
+  place(root, 0, null);
+  const span = Math.max(leaf - 1, 1);
+  for (const node of nodes) node.x = leaf <= 1 ? 0.5 : node.slot / span;
+
+  return (
+    <div className="space-y-2">
+      <Tree
+        nodes={nodes.length > 1 ? nodes : []}
+        highlight={step.highlight}
+        minWidth={leaf * 52}
+        emptyText="Empty trie. Insert a word to start."
+      />
+      {nodes.length > 1 && (
+        <p className="text-center text-xs text-muted-foreground">
+          Double ring = a word ends here
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Union-find: each set is a tree (children point up to parents), plus the parent array. */
+export function UnionFindView({ step }) {
+  const { parent } = step.state;
+  const children = parent.map(() => []);
+  parent.forEach((p, x) => {
+    if (p !== x) children[p].push(x);
+  });
+  const nodes = [];
+  let leaf = 0;
+  const place = (x, depth) => {
+    const entry = {
+      id: `e${x}`,
+      value: x,
+      depth,
+      parentId: parent[x] === x ? null : `e${parent[x]}`,
+    };
+    nodes.push(entry);
+    if (!children[x].length) {
+      entry.slot = leaf++;
+    } else {
+      const slots = children[x].map((child) => place(child, depth + 1));
+      entry.slot = (slots[0] + slots.at(-1)) / 2;
+    }
+    return entry.slot;
+  };
+  parent.forEach((p, x) => {
+    if (p === x) {
+      place(x, 0);
+      leaf += 0.5; // a little space between separate sets
+    }
+  });
+  const span = Math.max(leaf - 1.5, 1);
+  for (const node of nodes) node.x = leaf <= 1.5 ? 0.5 : node.slot / span;
+  const roots = parent.filter((p, x) => p === x).length;
+
+  return (
+    <div className="space-y-5">
+      <Tree
+        nodes={nodes}
+        highlight={step.highlight}
+        minWidth={leaf * 52}
+        emptyText="No elements yet. Use “Add element” to create some."
+      />
+      {parent.length > 0 && (
+        <div className="overflow-x-auto pb-1">
+          <p className="mb-1.5 text-center text-xs text-muted-foreground">
+            {roots} {roots === 1 ? "set" : "sets"} · parent array (parent[x] = x
+            means x is a root)
+          </p>
+          <div className="mx-auto flex w-max gap-1">
+            {parent.map((p, x) => (
+              <div key={x} className="flex flex-col items-center gap-0.5">
+                <span
+                  className={`flex h-9 w-9 items-center justify-center rounded-md font-mono text-sm font-bold text-white ${ROLE_STYLES[roleOf(`e${x}`, step.highlight)].bg}`}
+                >
+                  {p}
+                </span>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {x}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

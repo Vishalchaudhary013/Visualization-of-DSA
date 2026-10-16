@@ -21,6 +21,7 @@ const DataStructuresIndex = lazy(
 const DataStructurePage = lazy(
   () => import("@/features/data-structures/pages/DataStructurePage"),
 );
+const ComparePage = lazy(() => import("@/features/compare/pages/ComparePage"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage"));
 const ProfilePage = lazy(() => import("@/features/auth/pages/ProfilePage"));
@@ -37,6 +38,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Index />} />
                 <Route path="/visualizer" element={<Visualizer />} />
+                <Route path="/compare" element={<ComparePage />} />
                 <Route
                   path="/data-structures"
                   element={<DataStructuresIndex />}
