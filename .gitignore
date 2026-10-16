@@ -15,3 +15,5 @@ UPGRADE_CHECKLIST.md
 /UPGRADE_CHECKLIST.md
 
 /docs
+# Build output
+dist/

@@ -1,69 +1,71 @@
+import { lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/features/common/components/ui/tooltip";
-import { Toaster as RadixToaster } from "@/features/common/components/ui/toaster";
-import { Toaster as SonnerToaster } from "@/features/common/components/ui/sonner";
-import { Button } from "@/features/common/components/ui/button";
-import { LuHouse as Home, LuSparkles as Sparkles } from "react-icons/lu";
-
+import { Toaster } from "@/features/common/components/ui/sonner";
+import { Header } from "@/features/common/components/layout/Header";
+import { ScrollToTop } from "@/features/common/components/layout/ScrollToTop";
+import NotFound from "@/features/common/pages/NotFound";
+import Index from "@/features/home/pages/Index";
+import { AssistantChat } from "@/features/assistant/components/AssistantChat";
+import { AuthProvider } from "@/features/auth/context/AuthContext";
+import { RequireAuth } from "@/features/auth/components/RequireAuth";
 import "./features/global.css";
-import Index from "./features/home/pages/Index";
-import Visualizer from "./features/visualizer/pages/Visualizer";
-import NotFound from "./features/common/pages/NotFound";
-import { AssistantChat } from "./features/visualizer/components/AssistantChat";
-import { ScrollToTop } from "./features/common/components/ScrollToTop";
 
-const queryClient = new QueryClient();
-
-function Header() {
-  return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 font-bold text-xl">
-          <div className="w-8 h-8 bg-gradient-to-br from-primary to-blue-600 rounded-lg flex items-center justify-center text-white">
-            <Sparkles className="w-5 h-5" />
-          </div>
-          <span className="hidden sm:inline">Algorithm Visualizer</span>
-          <span className="sm:hidden">Visualizer</span>
-        </Link>
-        <nav className="flex items-center gap-4">
-          <Link to="/">
-            <Button variant="ghost" size="sm">
-              <Home className="w-4 h-4 mr-2" />
-              <span className="hidden sm:inline">Home</span>
-            </Button>
-          </Link>
-          <Link to="/visualizer">
-            <Button size="sm">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Visualizer
-            </Button>
-          </Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
+// Pages other than home load on demand
+const Visualizer = lazy(() => import("@/features/visualizer/pages/Visualizer"));
+const DataStructuresIndex = lazy(
+  () => import("@/features/data-structures/pages/DataStructuresIndex"),
+);
+const DataStructurePage = lazy(
+  () => import("@/features/data-structures/pages/DataStructurePage"),
+);
+const ComparePage = lazy(() => import("@/features/compare/pages/ComparePage"));
+const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
+const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage"));
+const ProfilePage = lazy(() => import("@/features/auth/pages/ProfilePage"));
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <RadixToaster />
-        <SonnerToaster />
-        <BrowserRouter>
-          <ScrollToTop />
-          <Header />
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/visualizer" element={<Visualizer />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-          <AssistantChat />
-        </BrowserRouter>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <TooltipProvider delayDuration={200}>
+        <AuthProvider>
+          <BrowserRouter>
+            <ScrollToTop />
+            <Header />
+            <Suspense fallback={<div className="min-h-[calc(100vh-4rem)]" />}>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/visualizer" element={<Visualizer />} />
+                <Route path="/compare" element={<ComparePage />} />
+                <Route
+                  path="/data-structures"
+                  element={<DataStructuresIndex />}
+                />
+                <Route
+                  path="/data-structures/:id"
+                  element={<DataStructurePage />}
+                />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route
+                  path="/profile"
+                  element={
+                    <RequireAuth>
+                      <ProfilePage />
+                    </RequireAuth>
+                  }
+                />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+            <AssistantChat />
+            <Toaster />
+          </BrowserRouter>
+        </AuthProvider>
       </TooltipProvider>
-    </QueryClientProvider>
+    </ThemeProvider>
   );
 }
 
