@@ -23,6 +23,14 @@ const CATEGORY_KEYWORDS = {
   sorting: ["sort", "sorts", "sorting"],
   searching: ["search", "searches", "searching"],
   "graph-traversal": ["graph", "graphs", "traversal", "traverse", "traversing"],
+  "graph-algorithms": [
+    "shortest",
+    "spanning",
+    "mst",
+    "weighted",
+    "dag",
+    "dependencies",
+  ],
 };
 
 function findMatchingAlgorithms(question) {

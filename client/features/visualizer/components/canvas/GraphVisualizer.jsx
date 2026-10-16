@@ -32,6 +32,13 @@ const EDGE_STYLES = {
     width: 3,
     marker: "arrow-tree",
   },
+  skipped: {
+    stroke: "stroke-rose-400/70",
+    arrow: "fill-rose-400/70",
+    width: 2,
+    marker: "arrow-skipped",
+    dashed: true,
+  },
   idle: {
     stroke: "stroke-slate-300 dark:stroke-slate-600",
     arrow: "fill-slate-300 dark:fill-slate-600",
@@ -61,7 +68,9 @@ export function GraphVisualizer({
   vertices,
   edges,
   directed,
+  weighted = false,
   frontierLabel,
+  orderLabel = "Visit order",
 }) {
   const svgRef = useRef(null);
   const [positions, setPositions] = useState(() => circleLayout(vertices));
@@ -72,9 +81,15 @@ export function GraphVisualizer({
   if (!step || positions.length !== vertices) return null;
 
   const frontier = step.frontier ?? [];
+  // Frontier items are vertices, or "vertex:distance" for Dijkstra
+  const frontierVertices = frontier
+    .map((item) =>
+      typeof item === "number" ? item : Number(/^(\d+):/.exec(item)?.[1]),
+    )
+    .filter(Number.isInteger);
   const vertexRole = (v) => {
     if (v === step.current) return "current";
-    if (frontier.includes(v)) return "frontier";
+    if (frontierVertices.includes(v)) return "frontier";
     if (step.sorted.includes(v)) return "visited";
     return "unvisited";
   };
@@ -82,6 +97,8 @@ export function GraphVisualizer({
     if (sameEdge(step.activeEdge, from, to, directed)) return "active";
     if (step.treeEdges?.some((edge) => sameEdge(edge, from, to, directed)))
       return "tree";
+    if (step.skippedEdges?.some((edge) => sameEdge(edge, from, to, directed)))
+      return "skipped";
     return "idle";
   };
 
@@ -113,14 +130,20 @@ export function GraphVisualizer({
           <li key={style.legend} className="flex items-center gap-1.5">
             <span className={`h-2.5 w-2.5 rounded-full ${style.chip}`} />
             {style.legend === "In frontier"
-              ? `In ${frontierLabel.toLowerCase()}`
+              ? `In ${frontierLabel.replace(/ \(.*\)$/, "").toLowerCase()}`
               : style.legend}
           </li>
         ))}
         <li className="flex items-center gap-1.5">
           <span className="h-0.5 w-4 rounded bg-emerald-500" />
-          Discovery edge
+          {weighted ? "Chosen edge" : "Discovery edge"}
         </li>
+        {step.skippedEdges?.length > 0 && (
+          <li className="flex items-center gap-1.5">
+            <span className="h-0 w-4 border-t-2 border-dashed border-rose-400" />
+            Rejected edge
+          </li>
+        )}
       </ul>
 
       <svg
@@ -150,7 +173,7 @@ export function GraphVisualizer({
           ))}
         </defs>
 
-        {edges.map(([from, to]) => {
+        {edges.map(([from, to, weight = 1]) => {
           const a = positions[from];
           const b = positions[to];
           if (!a || !b) return null;
@@ -159,18 +182,47 @@ export function GraphVisualizer({
           const uy = (b.y - a.y) / length;
           const gap = RADIUS + (directed ? 4 : 0);
           const style = EDGE_STYLES[edgeRole(from, to)];
+          // Weight label sits beside the middle of the edge
+          const mid = {
+            x: (a.x + b.x) / 2 - uy * 12,
+            y: (a.y + b.y) / 2 + ux * 12,
+          };
           return (
-            <line
-              key={`${from}-${to}`}
-              x1={a.x + ux * RADIUS}
-              y1={a.y + uy * RADIUS}
-              x2={b.x - ux * gap}
-              y2={b.y - uy * gap}
-              className={`${style.stroke} transition-all duration-300`}
-              strokeWidth={style.width}
-              strokeLinecap="round"
-              markerEnd={directed ? `url(#${style.marker})` : undefined}
-            />
+            <g key={`${from}-${to}`}>
+              <line
+                x1={a.x + ux * RADIUS}
+                y1={a.y + uy * RADIUS}
+                x2={b.x - ux * gap}
+                y2={b.y - uy * gap}
+                className={`${style.stroke} transition-all duration-300`}
+                strokeWidth={style.width}
+                strokeDasharray={style.dashed ? "6 5" : undefined}
+                strokeLinecap="round"
+                markerEnd={directed ? `url(#${style.marker})` : undefined}
+              />
+              {weighted && (
+                <g
+                  transform={`translate(${mid.x} ${mid.y})`}
+                  className="pointer-events-none"
+                >
+                  <rect
+                    x={-11}
+                    y={-10}
+                    width={22}
+                    height={20}
+                    rx={5}
+                    className="fill-card stroke-border"
+                  />
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="fill-foreground font-mono text-xs font-semibold"
+                  >
+                    {weight}
+                  </text>
+                </g>
+              )}
+            </g>
           );
         })}
 
@@ -208,6 +260,15 @@ export function GraphVisualizer({
               >
                 {vertex}
               </text>
+              {step.labels?.[vertex] !== undefined && (
+                <text
+                  y={RADIUS + 15}
+                  textAnchor="middle"
+                  className="pointer-events-none fill-violet-600 font-mono text-xs font-bold dark:fill-violet-400"
+                >
+                  {step.labels[vertex]}
+                </text>
+              )}
             </g>
           );
         })}
@@ -216,12 +277,18 @@ export function GraphVisualizer({
       <div className="grid gap-3 sm:grid-cols-2">
         <ChipRow
           title={frontierLabel}
-          hint={frontierLabel === "Queue" ? "front → back" : "bottom → top"}
+          hint={
+            frontierLabel.startsWith("Queue")
+              ? "front → back"
+              : frontierLabel === "Call stack"
+                ? "bottom → top"
+                : undefined
+          }
           items={frontier}
           chipClass="bg-violet-500"
         />
         <ChipRow
-          title="Visit order"
+          title={orderLabel}
           items={step.order ?? []}
           chipClass="bg-emerald-500"
           separator="→"

@@ -458,12 +458,216 @@ dfs(v)
       "Maze solving and path finding",
     ],
   },
+  dijkstra: {
+    id: "dijkstra",
+    name: "Dijkstra's Algorithm",
+    description:
+      "Finds the shortest path from one vertex to every other vertex in a graph with non-negative edge weights.",
+    category: "graph-algorithms",
+    complexity: {
+      time: {
+        best: "O((V + E) log V)",
+        average: "O((V + E) log V)",
+        worst: "O((V + E) log V)",
+      },
+      space: "O(V)",
+    },
+    pseudoCode: `dijkstra(graph, start)
+  dist[all] = ∞; dist[start] = 0; pq = {(0, start)}
+  while pq not empty
+    (d, u) = pq.popMin()
+    if d > dist[u]: skip outdated entry
+    for each edge (u, v, w)
+      if dist[u] + w < dist[v]
+        dist[v] = dist[u] + w; prev[v] = u; pq.push((dist[v], v))`,
+    jsCode: `function dijkstra(graph, start) {
+  // graph: Map<vertex, Array<{ to, weight }>>
+  const dist = new Map([...graph.keys()].map((v) => [v, Infinity]));
+  const prev = new Map();
+  dist.set(start, 0);
+  const pq = [[0, start]]; // use a binary heap for large graphs
+  while (pq.length) {
+    pq.sort((a, b) => a[0] - b[0]);
+    const [d, u] = pq.shift();
+    if (d > dist.get(u)) continue;
+    for (const { to: v, weight } of graph.get(u)) {
+      const candidate = d + weight;
+      if (candidate < dist.get(v)) {
+        dist.set(v, candidate);
+        prev.set(v, u);
+        pq.push([candidate, v]);
+      }
+    }
+  }
+  return { dist, prev };
+}`,
+    difficulty: "advanced",
+    tags: ["graph", "shortest-path", "greedy", "priority-queue"],
+    howItWorks: [
+      "Give the start distance 0 and every other vertex ∞.",
+      "Repeatedly take the unfinished vertex with the smallest distance: its distance is now final.",
+      "Relax its edges: if going through it gives a neighbour a shorter distance, update that neighbour.",
+      "The edges that produced the final distances form the shortest-path tree.",
+      "Negative weights break the greedy choice; use Bellman-Ford for those.",
+    ],
+    useCases: [
+      "Maps and GPS routing",
+      "Network routing protocols (OSPF)",
+      "Cheapest path in any weighted network",
+    ],
+  },
+  prim: {
+    id: "prim",
+    name: "Prim's Algorithm",
+    description:
+      "Builds a minimum spanning tree by growing one tree from a start vertex, always adding the cheapest edge that reaches a new vertex.",
+    category: "graph-algorithms",
+    complexity: {
+      time: { best: "O(E log V)", average: "O(E log V)", worst: "O(E log V)" },
+      space: "O(V + E)",
+    },
+    pseudoCode: `prim(graph, start)
+  tree = {start}; candidates = edges of start
+  while candidates and tree is missing vertices
+    (u, v, w) = cheapest candidate; if v in tree: skip
+    add v and edge (u, v) to the tree
+    add v's edges to vertices outside the tree as candidates`,
+    jsCode: `function prim(graph, start) {
+  // graph: Map<vertex, Array<{ to, weight }>> (undirected)
+  const inTree = new Set([start]);
+  const tree = [];
+  let candidates = graph.get(start).map((e) => ({ from: start, ...e }));
+  while (candidates.length && inTree.size < graph.size) {
+    candidates.sort((a, b) => a.weight - b.weight);
+    const { from, to, weight } = candidates.shift();
+    if (inTree.has(to)) continue;
+    inTree.add(to);
+    tree.push([from, to, weight]);
+    for (const edge of graph.get(to)) {
+      if (!inTree.has(edge.to)) candidates.push({ from: to, ...edge });
+    }
+  }
+  return tree;
+}`,
+    difficulty: "advanced",
+    tags: ["graph", "minimum-spanning-tree", "greedy"],
+    howItWorks: [
+      "Start a tree with a single vertex.",
+      "Look at every edge from the tree to a vertex outside it.",
+      "Add the cheapest one, together with its new vertex.",
+      "Repeat until every vertex is in the tree: the result has the smallest possible total weight.",
+    ],
+    useCases: [
+      "Designing cheapest cable, road or pipe networks",
+      "Clustering (cut the heaviest tree edges)",
+      "Approximating the travelling salesman problem",
+    ],
+  },
+  kruskal: {
+    id: "kruskal",
+    name: "Kruskal's Algorithm",
+    description:
+      "Builds a minimum spanning tree by taking edges from cheapest to most expensive and skipping any that would form a cycle.",
+    category: "graph-algorithms",
+    complexity: {
+      time: { best: "O(E log E)", average: "O(E log E)", worst: "O(E log E)" },
+      space: "O(V)",
+    },
+    pseudoCode: `kruskal(graph)
+  sort edges by weight; make each vertex its own set
+  for each edge (u, v, w) in sorted order
+    if find(u) != find(v)
+      union(u, v); add (u, v) to the tree
+    else: skip, it would form a cycle`,
+    jsCode: `function kruskal(vertexCount, edges) {
+  // edges: Array<[u, v, weight]>
+  const parent = Array.from({ length: vertexCount }, (_, v) => v);
+  const find = (v) => (parent[v] === v ? v : (parent[v] = find(parent[v])));
+  const tree = [];
+  for (const [u, v, w] of [...edges].sort((a, b) => a[2] - b[2])) {
+    const rootU = find(u);
+    const rootV = find(v);
+    if (rootU !== rootV) {
+      parent[rootU] = rootV;
+      tree.push([u, v, w]);
+    }
+  }
+  return tree;
+}`,
+    difficulty: "advanced",
+    tags: ["graph", "minimum-spanning-tree", "greedy", "union-find"],
+    howItWorks: [
+      "Sort all edges from cheapest to most expensive.",
+      "Every vertex starts as its own little tree (a disjoint set).",
+      "Take the next edge: if its ends are in different trees, add it and merge the trees.",
+      "If both ends are already connected, the edge would make a cycle, so skip it.",
+      "Union-find makes the 'already connected?' check almost O(1).",
+    ],
+    useCases: [
+      "Cheapest network design on sparse graphs",
+      "Image segmentation and clustering",
+      "A classic use of the union-find data structure",
+    ],
+  },
+  "topological-sort": {
+    id: "topological-sort",
+    name: "Topological Sort",
+    description:
+      "Orders the vertices of a directed acyclic graph so that every edge points from an earlier vertex to a later one (Kahn's algorithm).",
+    category: "graph-algorithms",
+    complexity: {
+      time: { best: "O(V + E)", average: "O(V + E)", worst: "O(V + E)" },
+      space: "O(V)",
+    },
+    pseudoCode: `topologicalSort(graph)
+  indegree[v] = incoming edges; queue = vertices with indegree 0
+  while queue not empty
+    u = queue.dequeue(); order.append(u)
+    for each edge u → v
+      indegree[v] = indegree[v] - 1
+      if indegree[v] == 0: queue.enqueue(v)
+  if order has fewer than V vertices: there is a cycle`,
+    jsCode: `function topologicalSort(graph) {
+  // graph: Map<vertex, Array<vertex>> (directed)
+  const indegree = new Map([...graph.keys()].map((v) => [v, 0]));
+  for (const targets of graph.values()) {
+    for (const v of targets) indegree.set(v, indegree.get(v) + 1);
+  }
+  const queue = [...graph.keys()].filter((v) => indegree.get(v) === 0);
+  const order = [];
+  while (queue.length) {
+    const u = queue.shift();
+    order.push(u);
+    for (const v of graph.get(u)) {
+      indegree.set(v, indegree.get(v) - 1);
+      if (indegree.get(v) === 0) queue.push(v);
+    }
+  }
+  if (order.length < graph.size) throw new Error("Graph has a cycle");
+  return order;
+}`,
+    difficulty: "intermediate",
+    tags: ["graph", "directed", "DAG", "queue"],
+    howItWorks: [
+      "Count each vertex's incoming edges (its prerequisites).",
+      "Vertices with no prerequisites can go first: put them in a queue.",
+      "Take one out, add it to the order, and remove its outgoing edges.",
+      "Any vertex whose count drops to 0 joins the queue.",
+      "If some vertices never reach 0, the graph has a cycle and no valid order exists.",
+    ],
+    useCases: [
+      "Task scheduling with dependencies",
+      "Build systems and package managers",
+      "Course prerequisite planning",
+    ],
+  },
 };
 
 export const ALGORITHM_CATEGORIES = {
   sorting: "Sorting",
   searching: "Searching",
   "graph-traversal": "Graph Traversal",
+  "graph-algorithms": "Weighted & Directed Graphs",
 };
 
 export const DIFFICULTIES = {

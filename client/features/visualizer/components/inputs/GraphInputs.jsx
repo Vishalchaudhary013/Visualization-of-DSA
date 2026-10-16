@@ -22,19 +22,41 @@ import {
   parseEdges,
 } from "../../utils/inputs";
 
-export function GraphInputs({ graph, onGraphChange }) {
-  const { vertices, edges, start, directed } = graph;
-  const [text, setText] = useState(formatEdges(edges));
+const DIRECTED_NOTES = {
+  undirected:
+    "This algorithm works on undirected graphs, so edges count both ways.",
+  directed:
+    "Topological order only exists for directed graphs, so edges point from → to.",
+};
+
+export function GraphInputs({
+  graph,
+  onGraphChange,
+  weighted = false,
+  directedMode,
+  needsStart = true,
+}) {
+  const { vertices, edges, start } = graph;
+  const directed =
+    directedMode === "directed"
+      ? true
+      : directedMode === "undirected"
+        ? false
+        : graph.directed;
+  const formatted = formatEdges(edges, { weighted });
+  const [text, setText] = useState(formatted);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    setText(formatEdges(edges));
+    setText(formatted);
     setError(null);
-  }, [edges]);
+  }, [formatted]);
 
   const update = (changes) => onGraphChange({ ...graph, ...changes });
 
   const applyText = () => {
+    // Unchanged text must not re-parse: hidden weights would reset to 1
+    if (text === formatted) return;
     const { edges: parsed, error: parseError } = parseEdges(text, vertices);
     if (parseError) {
       setError(parseError);
@@ -77,36 +99,46 @@ export function GraphInputs({ graph, onGraphChange }) {
         New random graph
       </Button>
 
-      <div className="space-y-2">
-        <Label htmlFor="start-vertex" className="text-sm">
-          Start vertex
-        </Label>
-        <Select
-          value={String(start)}
-          onValueChange={(value) => update({ start: Number(value) })}
-        >
-          <SelectTrigger id="start-vertex">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Array.from({ length: vertices }, (_, index) => (
-              <SelectItem key={index} value={String(index)}>
-                Vertex {index}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {needsStart && (
+        <div className="space-y-2">
+          <Label htmlFor="start-vertex" className="text-sm">
+            Start vertex
+          </Label>
+          <Select
+            value={String(start)}
+            onValueChange={(value) => update({ start: Number(value) })}
+          >
+            <SelectTrigger id="start-vertex">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: vertices }, (_, index) => (
+                <SelectItem key={index} value={String(index)}>
+                  Vertex {index}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
-      <div className="flex items-center justify-between">
-        <Label htmlFor="directed" className="text-sm">
-          Directed edges
-        </Label>
-        <Switch
-          id="directed"
-          checked={directed}
-          onCheckedChange={(checked) => update({ directed: checked })}
-        />
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="directed" className="text-sm">
+            Directed edges
+          </Label>
+          <Switch
+            id="directed"
+            checked={directed}
+            disabled={Boolean(directedMode)}
+            onCheckedChange={(checked) => update({ directed: checked })}
+          />
+        </div>
+        {directedMode && (
+          <p className="text-xs text-muted-foreground">
+            {DIRECTED_NOTES[directedMode]}
+          </p>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -115,7 +147,7 @@ export function GraphInputs({ graph, onGraphChange }) {
         </Label>
         <Textarea
           id="graph-edges"
-          placeholder={"0-1\n1-2\n2-3"}
+          placeholder={weighted ? "0-1:4\n1-2:7\n2-3:1" : "0-1\n1-2\n2-3"}
           value={text}
           onChange={(event) => setText(event.target.value)}
           onBlur={applyText}
@@ -133,9 +165,12 @@ export function GraphInputs({ graph, onGraphChange }) {
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Write edges as <code className="font-mono">from-to</code>. Changes
-            apply when you leave the box. Drag vertices on the canvas to
-            rearrange them.
+            Write edges as{" "}
+            <code className="font-mono">
+              {weighted ? "from-to:weight" : "from-to"}
+            </code>
+            . Changes apply when you leave the box. Drag vertices on the canvas
+            to rearrange them.
           </p>
         )}
       </div>

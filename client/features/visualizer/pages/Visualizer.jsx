@@ -17,6 +17,7 @@ import {
 import {
   ALGORITHM_KINDS,
   ALGORITHM_RUNNERS,
+  effectiveGraph,
   runAlgorithm,
 } from "../algorithms";
 import { AlgorithmPicker } from "../components/inputs/AlgorithmPicker";
@@ -195,6 +196,9 @@ export default function Visualizer() {
                 <GraphInputs
                   graph={graph}
                   onGraphChange={visualizer.setGraph}
+                  weighted={runner.weighted}
+                  directedMode={runner.directedMode}
+                  needsStart={runner.needsStart !== false}
                 />
               ) : (
                 <ArrayInputs
@@ -220,8 +224,10 @@ export default function Visualizer() {
                 step={step}
                 vertices={graph.vertices}
                 edges={graph.edges}
-                directed={graph.directed}
+                directed={effectiveGraph(algorithmId, graph).directed}
+                weighted={runner.weighted}
                 frontierLabel={runner.frontierLabel}
+                orderLabel={runner.orderLabel}
               />
             ) : (
               <ArrayVisualizer
@@ -298,7 +304,9 @@ export default function Visualizer() {
                   isSearching={isSearch}
                   isGraph={isGraph}
                   searchTarget={isSearch ? target : undefined}
-                  graphInfo={isGraph ? graph : undefined}
+                  graphInfo={
+                    isGraph ? effectiveGraph(algorithmId, graph) : undefined
+                  }
                 />
               </TabsContent>
               <TabsContent value="walkthrough" className="pt-2">

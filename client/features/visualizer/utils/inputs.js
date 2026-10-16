@@ -73,32 +73,43 @@ export function parseArray(text) {
   return { values };
 }
 
-/** One edge per line or comma-separated pairs: "0-1, 1 2" -> { edges } or { error } */
+/**
+ * One edge per line: "0-1", "0,1" or with a weight "0-1:4". Several edges on
+ * one line work too ("0-1:4, 1-2"). -> { edges: [[from, to, weight]] } or { error }
+ */
 export function parseEdges(text, vertices) {
-  // Lines are "0,1" or "0-1"; "0-1, 1-2" on one line is also accepted
   const parts = text
-    .split(/[\n;]+/)
+    .split(/[\n;_]+/)
     .flatMap((line) => (line.includes("-") ? line.split(",") : [line]))
     .map((part) => part.trim())
     .filter(Boolean);
   const edges = [];
   for (const part of parts) {
-    const match = part.match(/^(\d+)\s*(?:,|-|->|\s)\s*(\d+)$/);
-    if (!match) return { error: `"${part}" is not an edge like 0-1` };
+    const match = part.match(
+      /^(\d+)\s*(?:,|->|-|\s)\s*(\d+)(?:\s*(?::|,|\s)\s*(\d+))?$/,
+    );
+    if (!match) return { error: `"${part}" is not an edge like 0-1 or 0-1:4` };
     const [from, to] = [Number(match[1]), Number(match[2])];
+    const weight = match[3] === undefined ? 1 : Number(match[3]);
     if (from >= vertices || to >= vertices) {
       return {
         error: `Edge ${from}-${to} uses a vertex above ${vertices - 1}`,
       };
     }
     if (from === to) return { error: `Edge ${from}-${to} is a self-loop` };
-    edges.push([from, to]);
+    if (weight < 1 || weight > 99) {
+      return { error: `Weight ${weight} on ${from}-${to} must be 1 to 99` };
+    }
+    edges.push([from, to, weight]);
   }
   return { edges: dedupeEdges(edges) };
 }
 
-export const formatEdges = (edges) =>
-  edges.map(([a, b]) => `${a}-${b}`).join("\n");
+const formatEdge = ([a, b, w = 1], weighted) =>
+  weighted ? `${a}-${b}:${w}` : `${a}-${b}`;
+
+export const formatEdges = (edges, { weighted = false } = {}) =>
+  edges.map((edge) => formatEdge(edge, weighted)).join("\n");
 
 function dedupeEdges(edges) {
   const seen = new Set();
@@ -110,7 +121,11 @@ function dedupeEdges(edges) {
   });
 }
 
-/** Connected random graph: a random spanning tree plus a few extra edges. */
+/**
+ * Connected random graph with weights 1-9: a random spanning tree plus a few
+ * extra edges. Read as directed (from -> to), it never has a cycle, so it also
+ * works for topological sort. Vertex labels are shuffled so the order isn't 0..n.
+ */
 export function generateGraphEdges(vertices) {
   const edges = [];
   const has = (a, b) =>
@@ -122,7 +137,14 @@ export function generateGraphEdges(vertices) {
     const b = randomInt(0, vertices - 1);
     if (a !== b && !has(a, b)) edges.push([Math.min(a, b), Math.max(a, b)]);
   }
-  return edges.sort((x, y) => x[0] - y[0] || x[1] - y[1]);
+  const label = Array.from({ length: vertices }, (_, v) => v);
+  for (let i = vertices - 1; i > 0; i--) {
+    const j = randomInt(0, i);
+    [label[i], label[j]] = [label[j], label[i]];
+  }
+  return edges
+    .map(([a, b]) => [label[a], label[b], randomInt(1, 9)])
+    .sort((x, y) => x[0] - y[0] || x[1] - y[1]);
 }
 
 export const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -149,10 +171,7 @@ export function readParams(params, defaults) {
   }
   const edgesText = params.get("edges");
   if (edgesText) {
-    const { edges } = parseEdges(
-      edgesText.replace(/_/g, "\n"),
-      result.vertices,
-    );
+    const { edges } = parseEdges(edgesText, result.vertices);
     if (edges) result.edges = edges;
   }
   // Default edges may not fit a smaller vertex count taken from the URL
@@ -182,7 +201,7 @@ export function buildParams({
   const params = new URLSearchParams({ algo: algorithm });
   if (kind === "graph") {
     params.set("v", String(vertices));
-    params.set("edges", edges.map(([a, b]) => `${a}-${b}`).join("_"));
+    params.set("edges", edges.map((edge) => formatEdge(edge, true)).join("_"));
     params.set("start", String(start));
     if (directed) params.set("directed", "1");
   } else {
