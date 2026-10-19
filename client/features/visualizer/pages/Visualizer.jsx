@@ -230,6 +230,7 @@ export default function Visualizer() {
                   weighted={runner.weighted}
                   directedMode={runner.directedMode}
                   needsStart={runner.needsStart !== false}
+                  negativeWeights={runner.negativeWeights}
                 />
               ) : (
                 <ArrayInputs

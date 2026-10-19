@@ -36,6 +36,13 @@ describe("parseEdges", () => {
     });
   });
 
+  it("accepts negative weights", () => {
+    expect(parseEdges("0-1:-4\n1 2 -7", 3).edges).toEqual([
+      [0, 1, -4],
+      [1, 2, -7],
+    ]);
+  });
+
   it("removes duplicates", () => {
     expect(parseEdges("0-1\n0-1:4", 2).edges).toEqual([[0, 1, 1]]);
   });
@@ -44,8 +51,9 @@ describe("parseEdges", () => {
     ["0-5", 3, /vertex above 2/],
     ["1-1", 3, /self-loop/],
     ["a-b", 3, /not an edge/],
-    ["0-1:0", 3, /must be 1 to 99/],
-    ["0-1:100", 3, /must be 1 to 99/],
+    ["0-1:0", 3, /-99 to 99/],
+    ["0-1:100", 3, /-99 to 99/],
+    ["0-1:-100", 3, /-99 to 99/],
   ])("rejects %s", (text, vertices, message) => {
     expect(parseEdges(text, vertices).error).toMatch(message);
   });

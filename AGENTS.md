@@ -45,13 +45,14 @@ client/                          # React SPA frontend (Vite root)
     │   └── components/views/    # LinearViews (stack/queue/list), TreeViews (heap/BST/trie/union-find), HashTableView
     └── visualizer/
         ├── pages/Visualizer.jsx
-        ├── algorithms/          # Step generators (sorting, searching, graph, weightedGraph), recorder, registry (index.js), tests
+        ├── algorithms/          # Step generators (sorting, searching, graph, weightedGraph, pathfinding), recorder, registry (index.js), tests
         ├── components/
-        │   ├── inputs/          # AlgorithmPicker, ArrayInputs, GraphInputs
-        │   ├── canvas/          # ArrayVisualizer (boxes/bars), GraphVisualizer (draggable SVG)
+        │   ├── inputs/          # AlgorithmPicker, ArrayInputs, GraphInputs, GridInputs (walls/weights/maze)
+        │   ├── canvas/          # ArrayVisualizer (boxes/bars), GraphVisualizer (draggable SVG), GridVisualizer (paint walls, drag start/goal)
         │   └── panels/          # OperationStats, math panels, AlgorithmInfoPanel
         ├── hooks/               # useVisualizerState (URL-synced)
-        └── utils/inputs.js      # Presets, parsing/validation (edges: "0-1" or weighted "0-1:4"), URL params (+ tests)
+        └── utils/               # inputs.js: presets, parsing/validation (edges: "0-1", weighted "0-1:4" or negative "0-1:-4"), URL params;
+                                 #   grid.js: grid size, maze/random generators, cell encoding for the URL (+ tests)
 
 server/                          # Express backend
 ├── start.js                     # Entry point: connects MongoDB, app.listen, dev (Vite middleware) or prod (dist/spa)

@@ -82,14 +82,19 @@ describe("bubble sort", () => {
   });
 });
 
-describe.each(["linear-search", "binary-search"])("%s", (id) => {
+describe.each([
+  "linear-search",
+  "binary-search",
+  "jump-search",
+  "interpolation-search",
+])("%s", (id) => {
   const input = [15, 3, 27, 8, 42, 19];
 
   it.each(input)("finds %i", (target) => {
     const steps = runAlgorithm(id, { array: input, target });
     expectValidSteps(id, steps);
     const last = steps.at(-1);
-    const searched = id === "binary-search" ? ascending(input) : input;
+    const searched = id === "linear-search" ? input : ascending(input);
     expect(last.sorted).toEqual([searched.indexOf(target)]);
     expect(last.state[last.sorted[0]]).toBe(target);
   });
@@ -313,5 +318,77 @@ describe("weighted and directed graph algorithms", () => {
     });
     expect(steps.at(-1).explanation).toMatch(/cycle/);
     expect(steps.at(-1).line).toBe(7);
+  });
+});
+
+describe("Bellman-Ford", () => {
+  const finalDistances = (steps) =>
+    Object.values(steps.at(-1).labels).map((l) =>
+      l === "∞" ? Infinity : Number(l),
+    );
+
+  function reference({ vertices, edges, start }) {
+    const dist = Array(vertices).fill(Infinity);
+    dist[start] = 0;
+    for (let i = 0; i < vertices; i++) {
+      for (const [a, b, w] of edges)
+        if (dist[a] + w < dist[b]) dist[b] = dist[a] + w;
+    }
+    return dist;
+  }
+
+  it("handles negative weights on random graphs (no negative cycles)", () => {
+    for (let vertices = 2; vertices <= 10; vertices++) {
+      for (let k = 0; k < 3; k++) {
+        const graph = {
+          vertices,
+          edges: generateGraphEdges(vertices, { negative: true }),
+          start: 0,
+          directed: true,
+        };
+        const steps = runAlgorithm("bellman-ford", { graph });
+        expectValidSteps("bellman-ford", steps);
+        expect(finalDistances(steps)).toEqual(reference(graph));
+        expect(steps.at(-1).explanation).toMatch(/no negative cycle/);
+      }
+    }
+  });
+
+  it("finds the right distances where Dijkstra fails", () => {
+    // 0→1 (4), 0→2 (5), 2→1 (-3): the best way to 1 costs 2, through 2
+    const graph = {
+      vertices: 3,
+      edges: [
+        [0, 1, 4],
+        [0, 2, 5],
+        [2, 1, -3],
+      ],
+      start: 0,
+      directed: true,
+    };
+    expect(finalDistances(runAlgorithm("bellman-ford", { graph }))).toEqual([
+      0, 2, 5,
+    ]);
+    const dijkstraSteps = runAlgorithm("dijkstra", { graph });
+    expect(dijkstraSteps[0].explanation).toMatch(/negative weights/);
+  });
+
+  it("detects a negative cycle", () => {
+    const graph = {
+      vertices: 5,
+      edges: [
+        [0, 1, 3],
+        [1, 2, 4],
+        [2, 3, -6],
+        [3, 1, 1],
+        [3, 4, 2],
+      ],
+      start: 0,
+      directed: true,
+    };
+    const steps = runAlgorithm("bellman-ford", { graph });
+    expect(steps.at(-1).line).toBe(7);
+    expect(steps.at(-1).explanation).toMatch(/negative cycle/);
+    expect(steps.at(-1).skippedEdges).toHaveLength(1);
   });
 });

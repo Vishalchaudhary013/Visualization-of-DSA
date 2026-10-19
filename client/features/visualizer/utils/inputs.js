@@ -88,7 +88,7 @@ export function parseEdges(text, vertices) {
   const edges = [];
   for (const part of parts) {
     const match = part.match(
-      /^(\d+)\s*(?:,|->|-|\s)\s*(\d+)(?:\s*(?::|,|\s)\s*(\d+))?$/,
+      /^(\d+)\s*(?:,|->|-|\s)\s*(\d+)(?:\s*(?::|,|\s)\s*(-?\d+))?$/,
     );
     if (!match) return { error: `"${part}" is not an edge like 0-1 or 0-1:4` };
     const [from, to] = [Number(match[1]), Number(match[2])];
@@ -99,8 +99,10 @@ export function parseEdges(text, vertices) {
       };
     }
     if (from === to) return { error: `Edge ${from}-${to} is a self-loop` };
-    if (weight < 1 || weight > 99) {
-      return { error: `Weight ${weight} on ${from}-${to} must be 1 to 99` };
+    if (weight === 0 || weight < -99 || weight > 99) {
+      return {
+        error: `Weight ${weight} on ${from}-${to} must be -99 to 99 (not 0)`,
+      };
     }
     edges.push([from, to, weight]);
   }
@@ -124,11 +126,11 @@ function dedupeEdges(edges) {
 }
 
 /**
- * Connected random graph with weights 1-9: a random spanning tree plus a few
+ * Connected random graph with weights 1-9 (some -1..-5 with `negative`): a random spanning tree plus a few
  * extra edges. Read as directed (from -> to), it never has a cycle, so it also
  * works for topological sort. Vertex labels are shuffled so the order isn't 0..n.
  */
-export function generateGraphEdges(vertices) {
+export function generateGraphEdges(vertices, { negative = false } = {}) {
   const edges = [];
   const has = (a, b) =>
     edges.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
@@ -145,7 +147,12 @@ export function generateGraphEdges(vertices) {
     [label[i], label[j]] = [label[j], label[i]];
   }
   return edges
-    .map(([a, b]) => [label[a], label[b], randomInt(1, 9)])
+    .map(([a, b]) => [
+      label[a],
+      label[b],
+      // Negative weights stay cycle-free because the graph is acyclic when directed
+      negative && Math.random() < 0.3 ? -randomInt(1, 5) : randomInt(1, 9),
+    ])
     .sort((x, y) => x[0] - y[0] || x[1] - y[1]);
 }
 

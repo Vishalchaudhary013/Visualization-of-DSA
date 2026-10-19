@@ -22,6 +22,19 @@ import {
   parseEdges,
 } from "../../utils/inputs";
 
+// 1 → 2 → 3 → 1 has total weight 4 - 6 + 1 = -1
+const NEGATIVE_CYCLE_EXAMPLE = {
+  vertices: 5,
+  start: 0,
+  edges: [
+    [0, 1, 3],
+    [1, 2, 4],
+    [2, 3, -6],
+    [3, 1, 1],
+    [3, 4, 2],
+  ],
+};
+
 const DIRECTED_NOTES = {
   undirected:
     "This algorithm works on undirected graphs, so edges count both ways.",
@@ -35,6 +48,7 @@ export function GraphInputs({
   weighted = false,
   directedMode,
   needsStart = true,
+  negativeWeights = false,
 }) {
   const { vertices, edges, start } = graph;
   const directed =
@@ -82,7 +96,7 @@ export function GraphInputs({
           onValueChange={([count]) =>
             update({
               vertices: count,
-              edges: generateGraphEdges(count),
+              edges: generateGraphEdges(count, { negative: negativeWeights }),
               start: Math.min(start, count - 1),
             })
           }
@@ -93,11 +107,25 @@ export function GraphInputs({
         variant="outline"
         size="sm"
         className="w-full"
-        onClick={() => update({ edges: generateGraphEdges(vertices) })}
+        onClick={() =>
+          update({
+            edges: generateGraphEdges(vertices, { negative: negativeWeights }),
+          })
+        }
       >
         <Shuffle />
         New random graph
       </Button>
+      {negativeWeights && (
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => update({ ...NEGATIVE_CYCLE_EXAMPLE })}
+        >
+          Example with a negative cycle
+        </Button>
+      )}
 
       {needsStart && (
         <div className="space-y-2">

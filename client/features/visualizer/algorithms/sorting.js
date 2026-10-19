@@ -399,3 +399,170 @@ export function heapSort(input) {
   recordDone(record, sorted, array, ops);
   return steps;
 }
+
+// Insertion sort over shrinking gaps; shifts are drawn as swaps, like insertionSort.
+export function shellSort(input) {
+  const { array, steps, ops, sorted, record } = createRecorder(input);
+  const n = array.length;
+  recordStart(record, array);
+
+  for (let gap = Math.floor(n / 2); gap > 0; gap = Math.floor(gap / 2)) {
+    record({
+      line: gap === Math.floor(n / 2) ? 1 : 8,
+      explanation: `gap = ${gap}: insertion-sort the values that are ${gap} apart`,
+    });
+    for (let i = gap; i < n; i++) {
+      const key = array[i];
+      ops.reads++;
+      let j = i;
+      while (j >= gap) {
+        ops.comparisons++;
+        ops.reads++;
+        const moves = array[j - gap] > key;
+        record({
+          comparisons: [j - gap, j],
+          marker: j,
+          line: 5,
+          explanation: moves
+            ? `${array[j - gap]} > ${key} (${gap} to the left): move ${array[j - gap]} right by ${gap}`
+            : `${array[j - gap]} ≤ ${key}: ${key} stays here`,
+        });
+        if (!moves) break;
+        array[j] = array[j - gap];
+        array[j - gap] = key;
+        ops.writes++;
+        record({
+          swaps: [j - gap, j],
+          marker: j - gap,
+          line: 6,
+          explanation: `Shifted ${array[j]} to index ${j}`,
+        });
+        j -= gap;
+      }
+      if (j !== i) {
+        ops.writes++;
+        record({
+          swaps: [j],
+          marker: j,
+          line: 7,
+          explanation: `Place ${key} at index ${j}`,
+        });
+      }
+    }
+  }
+
+  recordDone(record, sorted, array, ops);
+  return steps;
+}
+
+/**
+ * Writes `value` at index i by moving it there from later in the array, so
+ * every drawn state still holds the same values (they visibly slide into place).
+ * The real algorithms write into an output array; the result is identical.
+ */
+function moveInto(array, i, value) {
+  const from = array.indexOf(value, i);
+  [array[i], array[from]] = [array[from], array[i]];
+  return from;
+}
+
+// Counts how often each value occurs, then rewrites the array in order.
+export function countingSort(input) {
+  const { array, steps, ops, sorted, record } = createRecorder(input);
+  recordStart(record, array);
+  if (!array.length) return steps;
+  const min = Math.min(...array);
+  const max = Math.max(...array);
+  const count = new Map();
+  record({
+    line: 1,
+    explanation: `Values range from ${min} to ${max}: make a counter for each`,
+  });
+
+  array.forEach((value, index) => {
+    count.set(value, (count.get(value) ?? 0) + 1);
+    ops.reads++;
+    ops.writes++;
+    record({
+      comparisons: [index],
+      line: 2,
+      explanation: `Read ${value}: count[${value}] = ${count.get(value)}`,
+    });
+  });
+
+  const tally = [...count.entries()].sort((a, b) => a[0] - b[0]);
+  record({
+    line: 3,
+    explanation: `Counts: ${tally.map(([value, c]) => (c > 1 ? `${value}×${c}` : value)).join(", ")}. Now write them back in order`,
+  });
+  let i = 0;
+  for (const [value, c] of tally) {
+    for (let k = 0; k < c; k++) {
+      const from = moveInto(array, i, value);
+      sorted.add(i);
+      ops.writes++;
+      record({
+        swaps: from === i ? [i] : [i, from],
+        line: 5,
+        explanation: `Write ${value} at index ${i}${c > 1 ? ` (${k + 1} of ${c})` : ""}`,
+      });
+      i++;
+    }
+  }
+
+  record({
+    explanation: `Sorted without a single comparison: ${ops.reads} reads and ${ops.writes} writes.`,
+  });
+  return steps;
+}
+
+// LSD radix sort in base 10: one stable bucket pass per digit.
+export function radixSort(input) {
+  const { array, steps, ops, sorted, record } = createRecorder(input);
+  recordStart(record, array);
+  const max = Math.max(0, ...array);
+  const places = ["ones", "tens", "hundreds"];
+
+  for (
+    let place = 0, divisor = 1;
+    divisor <= max || place === 0;
+    place++, divisor *= 10
+  ) {
+    const digit = (value) => Math.floor(value / divisor) % 10;
+    const buckets = Array.from({ length: 10 }, () => []);
+    array.forEach((value, index) => {
+      buckets[digit(value)].push(value);
+      ops.reads++;
+      record({
+        comparisons: [index],
+        line: 2,
+        explanation: `${places[place]} digit of ${value} is ${digit(value)}: bucket ${digit(value)}`,
+      });
+    });
+    const used = buckets
+      .map((bucket, d) =>
+        bucket.length ? `${d}:[${bucket.join(", ")}]` : null,
+      )
+      .filter(Boolean);
+    record({
+      line: 3,
+      explanation: `Buckets by ${places[place]} digit: ${used.join("  ")}. Read them back in order`,
+    });
+    buckets.flat().forEach((value, i) => {
+      const from = moveInto(array, i, value);
+      ops.writes++;
+      record({
+        swaps: from === i ? [i] : [i, from],
+        line: 3,
+        explanation: `Write ${value} back at index ${i}`,
+      });
+    });
+    if (divisor * 10 > max) break;
+  }
+
+  array.forEach((_, index) => sorted.add(index));
+  record({
+    explanation: `Sorted digit by digit without comparing values: ${ops.writes} writes.`,
+  });
+  return steps;
+}

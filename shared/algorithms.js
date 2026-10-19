@@ -288,6 +288,132 @@ function heapify(arr, n, i) {
       "Priority queues and top-k problems",
     ],
   },
+  "shell-sort": {
+    id: "shell-sort",
+    name: "Shell Sort",
+    description:
+      "Insertion sort on values far apart first (a big gap), then on smaller and smaller gaps, so values move long distances early.",
+    category: "sorting",
+    complexity: {
+      time: { best: "O(n log n)", average: "O(n^1.5)", worst: "O(n²)" },
+      space: "O(1)",
+    },
+    pseudoCode: `shellSort(arr)
+  gap = n / 2
+  while gap > 0
+    for i = gap to n-1
+      temp = arr[i]; j = i
+      while j >= gap and arr[j - gap] > temp
+        arr[j] = arr[j - gap]; j = j - gap
+      arr[j] = temp
+    gap = gap / 2`,
+    jsCode: `function shellSort(arr) {
+  for (let gap = Math.floor(arr.length / 2); gap > 0; gap = Math.floor(gap / 2)) {
+    for (let i = gap; i < arr.length; i++) {
+      const temp = arr[i];
+      let j = i;
+      while (j >= gap && arr[j - gap] > temp) {
+        arr[j] = arr[j - gap];
+        j -= gap;
+      }
+      arr[j] = temp;
+    }
+  }
+  return arr;
+}`,
+    difficulty: "intermediate",
+    tags: ["unstable", "in-place", "comparison-based", "gap sequence"],
+    howItWorks: [
+      "Pick a gap (start with half the length).",
+      "Insertion-sort each group of values that are 'gap' apart.",
+      "Halve the gap and repeat; small values have already travelled far to the left.",
+      "The last pass (gap 1) is a normal insertion sort, but on almost sorted data, so it is fast.",
+    ],
+    useCases: [
+      "Medium-sized arrays with no extra memory",
+      "Embedded systems (simple code, no recursion)",
+    ],
+  },
+  "counting-sort": {
+    id: "counting-sort",
+    name: "Counting Sort",
+    description:
+      "Counts how many times each value appears, then writes the values back in order. No comparisons at all.",
+    category: "sorting",
+    complexity: {
+      time: { best: "O(n + k)", average: "O(n + k)", worst: "O(n + k)" },
+      space: "O(k)",
+    },
+    pseudoCode: `countingSort(arr)
+  make a counter for every value from min to max
+  for each value v in arr: count[v] = count[v] + 1
+  i = 0
+  for v from min to max
+    repeat count[v] times: arr[i] = v; i = i + 1`,
+    jsCode: `function countingSort(arr) {
+  const min = Math.min(...arr);
+  const max = Math.max(...arr);
+  const count = new Array(max - min + 1).fill(0);
+  for (const v of arr) count[v - min]++;
+  let i = 0;
+  for (let v = min; v <= max; v++) {
+    for (let c = 0; c < count[v - min]; c++) arr[i++] = v;
+  }
+  return arr;
+}`,
+    difficulty: "intermediate",
+    tags: ["non-comparison", "integer keys", "linear time"],
+    howItWorks: [
+      "Find the smallest and largest value; k is the size of that range.",
+      "Walk the array once, counting each value.",
+      "Walk the counters from smallest to largest and write each value as many times as it was counted.",
+      "Linear time, but only practical when the range k is small compared with n.",
+    ],
+    useCases: [
+      "Sorting ages, grades, small integer IDs",
+      "As the digit sort inside radix sort",
+    ],
+  },
+  "radix-sort": {
+    id: "radix-sort",
+    name: "Radix Sort",
+    description:
+      "Sorts numbers digit by digit, from the ones place up, using stable buckets 0–9 for each digit.",
+    category: "sorting",
+    complexity: {
+      time: {
+        best: "O(d·(n + 10))",
+        average: "O(d·(n + 10))",
+        worst: "O(d·(n + 10))",
+      },
+      space: "O(n)",
+    },
+    pseudoCode: `radixSort(arr)
+  for each digit place: ones, tens, hundreds…
+    put each value into bucket[digit] (0–9), keeping their order
+    read the buckets back in order 0..9 into arr`,
+    jsCode: `function radixSort(arr) {
+  const max = Math.max(...arr);
+  for (let place = 1; Math.floor(max / place) > 0; place *= 10) {
+    const buckets = Array.from({ length: 10 }, () => []);
+    for (const v of arr) buckets[Math.floor(v / place) % 10].push(v);
+    arr = buckets.flat();
+  }
+  return arr;
+}`,
+    difficulty: "intermediate",
+    tags: ["non-comparison", "stable", "digits"],
+    howItWorks: [
+      "Look only at the ones digit and drop each value into bucket 0–9.",
+      "Collect the buckets in order: the array is now sorted by its last digit.",
+      "Repeat for the tens digit, then hundreds. Buckets keep the earlier order (stable), so ties stay sorted.",
+      "After the largest digit place, the whole array is sorted, with d passes for d-digit numbers.",
+    ],
+    useCases: [
+      "Sorting many integers or fixed-length keys (phone numbers, IDs)",
+      "Suffix arrays and string sorting",
+    ],
+  },
   "linear-search": {
     id: "linear-search",
     name: "Linear Search",
@@ -363,6 +489,95 @@ return -1`,
       "Looking up values in sorted data",
       "Finding boundaries (first/last position, lower bound)",
       "Binary search on the answer",
+    ],
+  },
+  "jump-search": {
+    id: "jump-search",
+    name: "Jump Search",
+    description:
+      "Searches a sorted array by jumping ahead in blocks of √n until it passes the target, then scanning that block.",
+    category: "searching",
+    complexity: {
+      time: { best: "O(1)", average: "O(√n)", worst: "O(√n)" },
+      space: "O(1)",
+    },
+    pseudoCode: `jumpSearch(arr, target)
+  step = √n; prev = 0
+  while arr[min(step, n) - 1] < target
+    prev = step; step = step + √n
+    if prev >= n: return -1
+  for i = prev to min(step, n) - 1
+    if arr[i] == target: return i
+  return -1`,
+    jsCode: `function jumpSearch(arr, target) {
+  const n = arr.length;
+  const block = Math.floor(Math.sqrt(n));
+  let prev = 0;
+  let step = block;
+  while (arr[Math.min(step, n) - 1] < target) {
+    prev = step;
+    step += block;
+    if (prev >= n) return -1;
+  }
+  for (let i = prev; i < Math.min(step, n); i++) {
+    if (arr[i] === target) return i;
+  }
+  return -1;
+}`,
+    difficulty: "beginner",
+    tags: ["sorted-array", "blocks"],
+    howItWorks: [
+      "Split the sorted array into blocks of about √n values.",
+      "Check the last value of each block until one is at least the target.",
+      "The target can only be in that block: scan it one by one.",
+      "At most √n jumps plus √n steps: between linear and binary search.",
+    ],
+    useCases: [
+      "Sorted data where jumping back is expensive (e.g. tapes, linked blocks)",
+      "Teaching the trade-off between linear and binary search",
+    ],
+  },
+  "interpolation-search": {
+    id: "interpolation-search",
+    name: "Interpolation Search",
+    description:
+      "Searches a sorted array by guessing the position from the target's value, like opening a dictionary near the right letter.",
+    category: "searching",
+    complexity: {
+      time: { best: "O(1)", average: "O(log log n)", worst: "O(n)" },
+      space: "O(1)",
+    },
+    pseudoCode: `interpolationSearch(arr, target)
+  low = 0, high = n - 1
+  while low <= high and arr[low] <= target <= arr[high]
+    pos = low + (target - arr[low]) × (high - low) / (arr[high] - arr[low])
+    if arr[pos] == target: return pos
+    if arr[pos] < target: low = pos + 1
+    else: high = pos - 1
+  return -1`,
+    jsCode: `function interpolationSearch(arr, target) {
+  let low = 0, high = arr.length - 1;
+  while (low <= high && target >= arr[low] && target <= arr[high]) {
+    const span = arr[high] - arr[low];
+    const pos = span === 0 ? low
+      : low + Math.floor(((target - arr[low]) * (high - low)) / span);
+    if (arr[pos] === target) return pos;
+    if (arr[pos] < target) low = pos + 1;
+    else high = pos - 1;
+  }
+  return -1;
+}`,
+    difficulty: "intermediate",
+    tags: ["sorted-array", "uniform data"],
+    howItWorks: [
+      "Instead of the middle, estimate where the target should be from how big it is compared with the ends of the range.",
+      "If the guess is too small, search to its right; too big, to its left.",
+      "On evenly spread values it needs only about log log n guesses.",
+      "On skewed data (e.g. 1, 2, 3, 1000) guesses are poor and it can degrade to O(n).",
+    ],
+    useCases: [
+      "Large sorted arrays of evenly distributed numbers",
+      "Looking up keys like timestamps or IDs",
     ],
   },
   bfs: {
@@ -514,6 +729,60 @@ dfs(v)
       "Maps and GPS routing",
       "Network routing protocols (OSPF)",
       "Cheapest path in any weighted network",
+    ],
+  },
+  "bellman-ford": {
+    id: "bellman-ford",
+    name: "Bellman-Ford",
+    description:
+      "Finds shortest paths from one vertex even when some edges have negative weights, and detects negative cycles.",
+    category: "graph-algorithms",
+    complexity: {
+      time: { best: "O(E)", average: "O(V · E)", worst: "O(V · E)" },
+      space: "O(V)",
+    },
+    pseudoCode: `bellmanFord(graph, start)
+  dist[all] = ∞; dist[start] = 0
+  repeat V - 1 times (stop early if nothing changes)
+    for each edge (u, v, w)
+      if dist[u] + w < dist[v]
+        dist[v] = dist[u] + w; prev[v] = u
+  check every edge (u, v, w) once more
+    if dist[u] + w < dist[v]: negative cycle!`,
+    jsCode: `function bellmanFord(vertexCount, edges, start) {
+  // edges: Array<[u, v, weight]> (directed, weights may be negative)
+  const dist = Array(vertexCount).fill(Infinity);
+  const prev = Array(vertexCount).fill(null);
+  dist[start] = 0;
+  for (let round = 1; round < vertexCount; round++) {
+    let changed = false;
+    for (const [u, v, w] of edges) {
+      if (dist[u] + w < dist[v]) {
+        dist[v] = dist[u] + w;
+        prev[v] = u;
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  for (const [u, v, w] of edges) {
+    if (dist[u] + w < dist[v]) throw new Error("Negative cycle");
+  }
+  return { dist, prev };
+}`,
+    difficulty: "advanced",
+    tags: ["graph", "shortest-path", "negative weights", "dynamic programming"],
+    howItWorks: [
+      "Start with dist = 0 at the start and ∞ everywhere else.",
+      "In each round, try every edge: if it gives a shorter way to its end vertex, update it (relax).",
+      "A shortest path has at most V − 1 edges, so V − 1 rounds are enough; often it settles sooner.",
+      "If an edge can still improve a distance after that, a negative cycle exists and 'shortest' has no meaning.",
+      "Slower than Dijkstra, but correct with negative weights.",
+    ],
+    useCases: [
+      "Graphs with negative costs (refunds, gains)",
+      "Currency arbitrage detection (negative cycles)",
+      "Distance-vector routing (RIP)",
     ],
   },
   prim: {

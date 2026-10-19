@@ -7,10 +7,24 @@ import {
   mergeSort,
   quickSort,
   heapSort,
+  shellSort,
+  countingSort,
+  radixSort,
 } from "./sorting.js";
-import { linearSearch, binarySearch } from "./searching.js";
+import {
+  linearSearch,
+  binarySearch,
+  jumpSearch,
+  interpolationSearch,
+} from "./searching.js";
 import { bfs, dfs } from "./graph.js";
-import { dijkstra, kruskal, prim, topologicalSort } from "./weightedGraph.js";
+import {
+  bellmanFord,
+  dijkstra,
+  kruskal,
+  prim,
+  topologicalSort,
+} from "./weightedGraph.js";
 import { gridSearch } from "./pathfinding.js";
 
 export const ALGORITHM_KINDS = {
@@ -38,6 +52,9 @@ export const ALGORITHM_RUNNERS = {
   "merge-sort": sort(mergeSort),
   "quick-sort": sort(quickSort, "Pivot"),
   "heap-sort": sort(heapSort, "Largest"),
+  "shell-sort": sort(shellSort, "Key"),
+  "counting-sort": sort(countingSort),
+  "radix-sort": sort(radixSort),
   "linear-search": {
     kind: ALGORITHM_KINDS.SEARCH,
     run: ({ array, target }) => linearSearch(array, target),
@@ -48,6 +65,26 @@ export const ALGORITHM_RUNNERS = {
     needsSortedInput: true,
     run: ({ array, target }) =>
       binarySearch(
+        [...array].sort((a, b) => a - b),
+        target,
+      ),
+  },
+  "jump-search": {
+    kind: ALGORITHM_KINDS.SEARCH,
+    markerLabel: "Block end",
+    needsSortedInput: true,
+    run: ({ array, target }) =>
+      jumpSearch(
+        [...array].sort((a, b) => a - b),
+        target,
+      ),
+  },
+  "interpolation-search": {
+    kind: ALGORITHM_KINDS.SEARCH,
+    markerLabel: "Guess",
+    needsSortedInput: true,
+    run: ({ array, target }) =>
+      interpolationSearch(
         [...array].sort((a, b) => a - b),
         target,
       ),
@@ -73,6 +110,16 @@ export const ALGORITHM_RUNNERS = {
     orderLabel: "Finalized",
     run: ({ graph }) =>
       dijkstra(graph.vertices, graph.edges, graph.start, graph.directed),
+  },
+  "bellman-ford": {
+    kind: ALGORITHM_KINDS.GRAPH,
+    weighted: true,
+    negativeWeights: true,
+    directedMode: "directed",
+    frontierLabel: "Updated this round",
+    orderLabel: "Updates per round",
+    run: ({ graph }) =>
+      bellmanFord(graph.vertices, graph.edges, graph.start, true),
   },
   prim: {
     kind: ALGORITHM_KINDS.GRAPH,

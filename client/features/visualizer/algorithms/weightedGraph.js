@@ -51,12 +51,17 @@ export function dijkstra(vertices, edges, start, directed = false) {
     treeEdges.push([prev[v], v]);
   };
 
+  const negative = edges.some((edge) => weightOf(edge) < 0);
   record({
     current: start,
     frontier: frontier(),
     line: 1,
     labels: distanceLabels(dist),
-    explanation: `Every distance starts at ∞ except the start: dist[${start}] = 0`,
+    explanation: `Every distance starts at ∞ except the start: dist[${start}] = 0${
+      negative
+        ? ". Warning: this graph has negative weights, which break Dijkstra's greedy choice. Use Bellman-Ford for correct answers"
+        : ""
+    }`,
   });
 
   while (queue.length) {
@@ -339,6 +344,129 @@ export function topologicalSort(vertices, edges) {
     explanation: hasCycle
       ? `Only ${order.length} of ${vertices} vertices could be ordered: the rest are part of a cycle, so no topological order exists`
       : `Topological order: ${order.join(" → ")}. Every edge points forward in this order`,
+  });
+  return rec.steps;
+}
+
+/** Bellman-Ford: relax every edge V-1 times; one more pass finds negative cycles. */
+export function bellmanFord(vertices, edges, start, directed = true) {
+  const rec = createGraphRecorder(vertices);
+  const { ops, visited, order, treeEdges, skippedEdges, record } = rec;
+  const all = edges
+    .filter(([a, b]) => a < vertices && b < vertices)
+    .flatMap((edge) => {
+      const forward = { from: edge[0], to: edge[1], weight: weightOf(edge) };
+      return directed
+        ? [forward]
+        : [forward, { from: edge[1], to: edge[0], weight: forward.weight }];
+    });
+  const dist = Array(vertices).fill(Infinity);
+  const prev = Array(vertices).fill(null);
+  dist[start] = 0;
+  visited.add(start);
+  const show = (d) => (d === Infinity ? INF : d);
+  const setTreeEdge = (v) => {
+    const index = treeEdges.findIndex(([, to]) => to === v);
+    if (index !== -1) treeEdges.splice(index, 1);
+    treeEdges.push([prev[v], v]);
+  };
+
+  record({
+    current: start,
+    frontier: [],
+    line: 1,
+    labels: distanceLabels(dist),
+    explanation: `dist[${start}] = 0, every other distance starts at ∞. Relax all ${all.length} edges up to ${vertices - 1} times`,
+  });
+
+  for (let round = 1; round < vertices; round++) {
+    const changed = [];
+    record({
+      current: -1,
+      frontier: changed,
+      line: 2,
+      labels: distanceLabels(dist),
+      explanation: `Round ${round} of ${vertices - 1}: try every edge`,
+    });
+    for (const { from: u, to: v, weight } of all) {
+      ops.comparisons++;
+      if (dist[u] === Infinity) {
+        record({
+          current: u,
+          frontier: changed,
+          activeEdge: [u, v],
+          line: 4,
+          labels: distanceLabels(dist),
+          explanation: `dist[${u}] is still ∞: edge ${u}→${v} can't help yet`,
+        });
+        continue;
+      }
+      const candidate = dist[u] + weight;
+      if (candidate < dist[v]) {
+        const old = dist[v];
+        dist[v] = candidate;
+        prev[v] = u;
+        visited.add(v);
+        setTreeEdge(v);
+        if (!changed.includes(v)) changed.push(v);
+        ops.writes++;
+        record({
+          current: u,
+          frontier: changed,
+          activeEdge: [u, v],
+          line: 5,
+          labels: distanceLabels(dist),
+          explanation: `${dist[u]} + (${weight}) = ${candidate} < ${show(old)}: update dist[${v}]`,
+        });
+      } else {
+        record({
+          current: u,
+          frontier: changed,
+          activeEdge: [u, v],
+          line: 4,
+          labels: distanceLabels(dist),
+          explanation: `${dist[u]} + (${weight}) = ${candidate} ≥ ${show(dist[v])}: no improvement`,
+        });
+      }
+    }
+    order.push(`R${round}: ${changed.length}`);
+    if (!changed.length) {
+      record({
+        current: -1,
+        frontier: [],
+        line: 2,
+        labels: distanceLabels(dist),
+        explanation: `Nothing changed in round ${round}: the distances are final, stop early`,
+      });
+      break;
+    }
+  }
+
+  // One more pass: any edge that still improves a distance lies on a negative cycle
+  const bad = all.find(
+    ({ from: u, to: v, weight }) =>
+      dist[u] !== Infinity && dist[u] + weight < dist[v],
+  );
+  if (bad) {
+    skippedEdges.push([bad.from, bad.to]);
+    record({
+      current: bad.from,
+      frontier: [],
+      activeEdge: [bad.from, bad.to],
+      line: 7,
+      labels: distanceLabels(dist),
+      explanation: `Edge ${bad.from}→${bad.to} can still lower a distance after ${vertices - 1} rounds: the graph has a negative cycle, so shortest paths are undefined`,
+    });
+    return rec.steps;
+  }
+  record({
+    current: -1,
+    frontier: [],
+    line: 6,
+    labels: distanceLabels(dist),
+    explanation: `Check every edge once more: none can improve, so there is no negative cycle. Distances: ${dist
+      .map((d, v) => `${v}=${show(d)}`)
+      .join(", ")}`,
   });
   return rec.steps;
 }
