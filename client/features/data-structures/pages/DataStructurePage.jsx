@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Link,
-  Navigate,
   useLocation,
   useParams,
   useSearchParams,
@@ -16,6 +15,7 @@ import { Button } from "@/features/common/components/ui/button";
 import { Input } from "@/features/common/components/ui/input";
 import { Label } from "@/features/common/components/ui/label";
 import { DATA_STRUCTURES } from "@shared/dataStructures";
+import NotFound from "@/features/common/pages/NotFound";
 import { DIFFICULTIES } from "@shared/algorithms";
 import { PlaybackControls } from "@/features/common/components/playback/PlaybackControls";
 import { PseudocodePanel } from "@/features/common/components/playback/PseudocodePanel";
@@ -92,7 +92,8 @@ const Panel = ({ title, aside, children, className = "" }) => (
 export default function DataStructurePage() {
   const { id } = useParams();
   const meta = DATA_STRUCTURES[id];
-  if (!meta) return <Navigate to="/data-structures" replace />;
+  // Unknown structure: a real 404 (the server answers 404 for it too)
+  if (!meta) return <NotFound />;
   // Remount per structure so all state resets cleanly
   return <DataStructureWorkspace key={id} id={id} meta={meta} />;
 }

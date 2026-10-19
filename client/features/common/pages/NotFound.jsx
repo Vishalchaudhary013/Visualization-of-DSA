@@ -7,8 +7,10 @@ export default function NotFound() {
     <div className="gradient-bg flex min-h-[calc(100vh-4rem)] items-center justify-center px-4">
       <div className="max-w-md space-y-6 text-center">
         <div className="space-y-2">
-          <h1 className="text-6xl font-bold text-primary">404</h1>
-          <h2 className="text-3xl font-bold">Page not found</h2>
+          <p className="text-6xl font-bold text-primary" aria-hidden="true">
+            404
+          </p>
+          <h1 className="text-3xl font-bold">Page not found</h1>
           <p className="text-lg text-muted-foreground">
             We couldn't find the page you're looking for. It might have been
             moved or doesn't exist.

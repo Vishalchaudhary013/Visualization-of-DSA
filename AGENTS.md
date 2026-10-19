@@ -21,14 +21,15 @@ client/                          # React SPA frontend (Vite root)
 ├── index.html                   # HTML entry
 ├── App.jsx                      # Providers (theme, tooltips, toasts) + routes (Visualizer is lazy-loaded)
 ├── vite.config.js               # Vite config (React + Tailwind plugins, aliases, build → ../dist/spa)
-├── public/                      # Static files copied as-is to the site root (robots.txt)
+├── public/                      # Static files copied as-is: favicon.ico/.svg, icons, site.webmanifest, og-image.jpg
 └── features/
     ├── global.css               # Tailwind v4 config: tokens, @theme, @custom-variant dark, @utility
     ├── common/                  # Shared across features
     │   ├── components/ui/       # Radix-based UI primitives (only the ones in use)
-    │   ├── components/layout/   # Header, ThemeToggle, ScrollToTop
+    │   ├── components/layout/   # Header, Logo (brand mark + wordmark; same drawing as public/favicon.svg), ThemeToggle, ScrollToTop
     │   ├── components/playback/ # PlaybackControls, PseudocodePanel, StepLog (visualizer + data structures)
     │   ├── hooks/               # usePlayback, useKeyboardShortcuts
+    │   ├── seo/SeoManager.jsx   # Updates <head> (title, canonical, OG, JSON-LD) on client-side navigation
     │   ├── lib/api.js           # fetch wrapper for /api (JSON, cookies, ApiError)
     │   └── pages/NotFound.jsx
     ├── home/                    # Landing page
@@ -41,7 +42,8 @@ client/                          # React SPA frontend (Vite root)
     ├── patterns/                # /patterns roadmap + /patterns/:id (template, practice list, LeetCode-style problem)
     │   ├── problems/            # Step generators for problems (arrays, graphs, dp) + registry (index.js) + tests
     │   ├── utils/problemInput.js # Parses LeetCode-format inputs ("[2,7,11,15]", "\"abc\""), URL params
-    │   └── components/          # PatternsMenu (header dropdown), ProblemWorkbench, ProblemInputs, ArrayProblemView
+    │   └── components/          # PatternsMenu (header dropdown), ProblemWorkbench, ProblemInputs, ArrayProblemView,
+    │                            #   SolutionPanel (language dropdown: JavaScript / Python / Java / C++)
     ├── data-structures/
     │   ├── pages/               # DataStructuresIndex, DataStructurePage (/data-structures/:id)
     │   ├── engines/             # Stack, queue, heap, linked list, BST, hash table, trie, union-find -> steps (+ tests)
@@ -59,15 +61,20 @@ client/                          # React SPA frontend (Vite root)
                                  #   grid.js: grid size, maze/random generators, cell encoding for the URL (+ tests)
 
 server/                          # Express backend
-├── start.js                     # Entry point: connects MongoDB, app.listen, dev (Vite middleware) or prod (dist/spa)
-├── app.js                       # createServer(): JSON, cookies, helmet on /api, error handler
+├── start.js                     # Entry point: connects MongoDB, app.listen, dev (Vite middleware) or prod (dist/spa);
+│                                #   every page is index.html rendered with its SEO tags and HTTP status (seo/html.js)
+├── app.js                       # createServer(): gzip, JSON, cookies, helmet + X-Robots-Tag on /api, trailing-slash 301s,
+│                                #   /robots.txt and /sitemap.xml, error handler
+├── seo/                         # html.js (head tags + no-JS fallback into index.html), sitemap.js (urlset / sitemap index)
 ├── config/db.js                 # connectDb(), isDbConnected()
+├── config/site.js               # siteOrigin(req): SITE_URL, or the request's origin in development
 ├── models/                      # Mongoose schemas: User, HistoryEntry
 ├── routes/                      # Route definitions only (URL -> middleware -> controller)
 │   ├── index.js                 # Combines all route files under /api (+ JSON 404)
 │   ├── assistant.routes.js      # POST /api/assistant
 │   ├── auth.routes.js           # /api/auth/*
 │   ├── history.routes.js        # /api/history/*
+│   ├── seo.routes.js            # GET /robots.txt, /sitemap.xml (+ /sitemap-N.xml when split)
 │   └── system.routes.js         # GET /api/ping
 ├── controllers/                 # Request handling + logic (assistant, auth, history, system)
 ├── middleware/                  # requireDb, requireAuth, validateBody(zod schema)
@@ -79,7 +86,10 @@ shared/                          # Code used by both client & server
 ├── algorithms.js                # Algorithm metadata (pseudocode lines are referenced by step generators)
 ├── dataStructures.js            # Data structure metadata + per-operation pseudocode
 ├── patterns.js                  # Patterns grouped in roadmap order (summary, signals, template, practice, links)
-└── problems.js                  # LeetCode-style problems: statement, fields + limits, examples, JS solution code
+├── problems.js                  # LeetCode-style problems: statement, fields + limits, examples, JS solution code
+├── solutions.js                 # The same solutions in Python, Java and C++, with a line map to the JS code
+└── seo.js                       # resolveSeo(path, query): title, description, canonical, robots, breadcrumbs, JSON-LD
+                                 #   for every route; seoTags() -> head tags; sitemapPaths() -> indexable URLs
 ```
 
 ### Adding an algorithm
@@ -136,7 +146,7 @@ className={`rounded-md px-4 ${isActive ? "bg-primary" : "bg-muted"} ${className 
 - **Hot reload**: Vite HMR for client code; the server restarts on changes in `server/` and `shared/`
 - **API endpoints**: Prefixed with `/api/`
 - **Database / models**: MongoDB with Mongoose. Schemas live in `server/models/`, the connection string in `.env` (`MONGODB_URI`, see `.env.example`), and models are used only from controllers
-- **Environment**: `MONGODB_URI` (accounts/history), `JWT_SECRET` (required in production; dev uses a random per-process secret), optional `PORT`
+- **Environment**: `MONGODB_URI` (accounts/history), `JWT_SECRET` (required in production; dev uses a random per-process secret), `SITE_URL` (production URL for canonical/social/sitemap URLs), optional `PORT`
 
 #### API Routes
 - `POST /api/assistant` - Q&A used by the assistant chat (`{ question, algorithmId? }`, id of the algorithm or data structure on screen)
@@ -212,7 +222,8 @@ const data = await response.json();
 
 1. Add the problem to `shared/problems.js`: `fields` (types `int`, `int[]`, `int[][]` with `tuple`, `string`, with limits), `examples`, `view` (`array`, `graph` or `table`) and the JavaScript solution in `code`.
 2. Write a step generator in `client/features/patterns/problems/` whose steps set `line` to a line of that `code`, and register it (plus any extra input `check`) in `problems/index.js`.
-3. List its id in the pattern's `problems` in `shared/patterns.js`. The tests run the shown `code` and compare its result with the animation's output.
+3. Add Python, Java and C++ versions to `shared/solutions.js` (LeetCode style, a `Solution` class with the same method name). `lines[i]` is the line of that language matching line `i` of the JavaScript code, so the highlight follows the animation.
+4. List its id in the pattern's `problems` in `shared/patterns.js`. The tests run the shown JavaScript and compare its result with the animation's output; when `python3`, `javac` and `g++` are installed they also compile and run the other languages on the same inputs.
 
 ### Adding a data structure
 
@@ -226,6 +237,12 @@ const data = await response.json();
 ```jsx
 <Route path="/my-page" element={<MyPage />} />
 ```
+3. Add the route to `resolvePage` in `shared/seo.js` (title, description, canonical path, breadcrumbs, JSON-LD; `robots: "noindex, follow"` for private pages). Unknown routes resolve to a 404, so a page missing there is served with status 404. Add public pages to `sitemapPaths()`; the SEO tests check that every sitemap URL is a 200, indexable and its own canonical.
+
+### SEO
+- The server renders `client/index.html` for every page with the tags from `shared/seo.js` in place of `<!-- seo:head -->`, the right status (404 for unknown routes and ids) and a `<noscript>` fallback (heading, description, links). `SeoManager` updates the same tags (marked `data-seo`) on client-side navigation.
+- Content comes from `shared/*.js`, so `sitemap.xml` is built once per process and changes with a deploy. It has no `lastmod` (no reliable per-page date) and switches to a sitemap index above 50,000 URLs.
+- `robots.txt` only disallows `/api/`; private pages use `noindex` so crawlers can still read it.
 
 ## Production Deployment
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { Link, Navigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import {
   LuArrowLeft as ArrowLeft,
   LuArrowRight as ArrowRight,
@@ -11,6 +11,7 @@ import {
 import { PATTERNS, PATTERN_GROUPS, PATTERN_LIST } from "@shared/patterns";
 import { PROBLEMS } from "@shared/problems";
 import { PseudocodePanel } from "@/features/common/components/playback/PseudocodePanel";
+import NotFound from "@/features/common/pages/NotFound";
 import { ProblemWorkbench } from "../components/ProblemWorkbench";
 import { buildProblemParams, readProblemInput } from "../utils/problemInput";
 
@@ -56,7 +57,8 @@ export default function PatternPage() {
     if (canonical !== search) setSearchParams(canonical, { replace: true });
   }, [canonical, search, setSearchParams]);
 
-  if (!pattern) return <Navigate to="/patterns" replace />;
+  // Unknown pattern: a real 404 (the server answers 404 for it too)
+  if (!pattern) return <NotFound />;
 
   const index = PATTERN_LIST.indexOf(pattern);
   const previous = PATTERN_LIST[index - 1];

@@ -13,6 +13,7 @@
   "dependencies": {
     "@radix-ui/react-dropdown-menu": "^2.2.1",
     "bcryptjs": "^3.0.3",
+    "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",

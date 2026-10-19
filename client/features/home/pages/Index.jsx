@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Link } from "react-router-dom";
 import {
   LuArrowRight as ArrowRight,
@@ -11,7 +12,11 @@ import {
 } from "react-icons/lu";
 import { buttonVariants } from "@/features/common/components/ui/button";
 import { AlgorithmCatalog } from "../components/AlgorithmCatalog";
-import { HeroPreview } from "../components/HeroPreview";
+// The animated demo pulls in the animation library: load it after the page
+const HeroPreview = lazy(() =>
+  import("../components/HeroPreview").then((m) => ({ default: m.HeroPreview })),
+);
+import { Logo } from "@/features/common/components/layout/Logo";
 
 const FEATURES = [
   {
@@ -91,7 +96,17 @@ export default function Index() {
               </Link>
             </div>
           </div>
-          <HeroPreview />
+          <Suspense
+            fallback={
+              // Same size as the demo, so nothing moves when it appears
+              <div
+                className="h-[302px] rounded-2xl border border-border bg-card/80 shadow-xl"
+                aria-hidden="true"
+              />
+            }
+          >
+            <HeroPreview />
+          </Suspense>
         </div>
       </section>
 
@@ -126,11 +141,9 @@ export default function Index() {
 
       <footer className="border-t border-border bg-card py-8">
         <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 text-sm text-muted-foreground md:flex-row">
-          <p>
-            <span className="font-semibold text-foreground">
-              Algorithm Visualizer
-            </span>{" "}
-            · learn DSA by watching it run
+          <p className="flex items-center gap-2">
+            <Logo className="text-base! text-foreground" />
+            <span>· learn DSA by watching it run</span>
           </p>
           <p>© {new Date().getFullYear()} Algorithm Visualizer</p>
         </div>
