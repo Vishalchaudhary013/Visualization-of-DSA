@@ -22,6 +22,10 @@ const DataStructurePage = lazy(
   () => import("@/features/data-structures/pages/DataStructurePage"),
 );
 const ComparePage = lazy(() => import("@/features/compare/pages/ComparePage"));
+const PatternsIndex = lazy(
+  () => import("@/features/patterns/pages/PatternsIndex"),
+);
+const PatternPage = lazy(() => import("@/features/patterns/pages/PatternPage"));
 const LoginPage = lazy(() => import("@/features/auth/pages/LoginPage"));
 const RegisterPage = lazy(() => import("@/features/auth/pages/RegisterPage"));
 const ProfilePage = lazy(() => import("@/features/auth/pages/ProfilePage"));
@@ -39,6 +43,8 @@ function App() {
                 <Route path="/" element={<Index />} />
                 <Route path="/visualizer" element={<Visualizer />} />
                 <Route path="/compare" element={<ComparePage />} />
+                <Route path="/patterns" element={<PatternsIndex />} />
+                <Route path="/patterns/:patternId" element={<PatternPage />} />
                 <Route
                   path="/data-structures"
                   element={<DataStructuresIndex />}

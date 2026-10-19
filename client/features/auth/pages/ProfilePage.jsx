@@ -10,13 +10,17 @@ import {
 } from "@/features/common/components/ui/tabs";
 import { ALGORITHMS } from "@shared/algorithms";
 import { DATA_STRUCTURES } from "@shared/dataStructures";
+import { PROBLEMS } from "@shared/problems";
 import { fetchStats } from "@/features/history/api";
 import { HistoryList } from "@/features/history/components/HistoryList";
+import { KIND_INFO, topicLink } from "@/features/history/kinds";
 import { useAuth } from "../context/AuthContext";
 import { AccountSettings } from "../components/AccountSettings";
 
 const TOTAL_ITEMS =
-  Object.keys(ALGORITHMS).length + Object.keys(DATA_STRUCTURES).length;
+  Object.keys(ALGORITHMS).length +
+  Object.keys(DATA_STRUCTURES).length +
+  Object.keys(PROBLEMS).length;
 const memberSince = new Intl.DateTimeFormat(undefined, {
   month: "long",
   year: "numeric",
@@ -30,11 +34,6 @@ function timeAgo(date) {
   if (Math.abs(hours) < 24) return relative.format(hours, "hour");
   return relative.format(Math.round(hours / 24), "day");
 }
-
-const itemLink = (item) =>
-  item.kind === "algorithm"
-    ? `/visualizer?algo=${item.itemId}`
-    : `/data-structures/${item.itemId}`;
 
 function StatCard({ label, value, hint }) {
   return (
@@ -91,7 +90,7 @@ export default function ProfilePage() {
       </header>
 
       <section
-        className="grid grid-cols-2 gap-3 lg:grid-cols-4"
+        className="grid grid-cols-2 gap-3 lg:grid-cols-5"
         aria-label="Your stats"
       >
         <StatCard
@@ -109,10 +108,11 @@ export default function ProfilePage() {
           label="Data structure sessions"
           value={stats?.byKind["data-structure"] ?? "–"}
         />
+        <StatCard label="Problem runs" value={stats?.byKind.problem ?? "–"} />
         <StatCard
           label="Topics explored"
           value={stats ? `${stats.byItem.length}/${TOTAL_ITEMS}` : "–"}
-          hint="Algorithms and data structures you have tried"
+          hint="Algorithms, data structures and problems you have tried"
         />
       </section>
 
@@ -133,7 +133,7 @@ export default function ProfilePage() {
               {stats.byItem.map((item) => (
                 <li key={`${item.kind}-${item.itemId}`}>
                   <Link
-                    to={itemLink(item)}
+                    to={topicLink(item)}
                     className="block rounded-lg border border-border bg-card p-3 transition-colors hover:border-primary/50"
                   >
                     <div className="mb-2 flex items-center justify-between gap-2 text-sm">
@@ -145,7 +145,7 @@ export default function ProfilePage() {
                     </div>
                     <div className="h-2 overflow-hidden rounded-full bg-muted">
                       <div
-                        className={`h-full rounded-full ${item.kind === "algorithm" ? "bg-primary" : "bg-emerald-500"}`}
+                        className={`h-full rounded-full ${KIND_INFO[item.kind]?.bar ?? "bg-primary"}`}
                         style={{ width: `${(item.count / maxCount) * 100}%` }}
                       />
                     </div>

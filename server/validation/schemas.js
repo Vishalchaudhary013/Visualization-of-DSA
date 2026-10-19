@@ -39,9 +39,12 @@ const appLink = z
   .string()
   .max(2000)
   .regex(
-    /^\/(visualizer|data-structures)(\/[a-z-]+)?(\?[\w\-.,~%=&+]*)?$/,
+    /^\/(visualizer|data-structures|patterns)(\/[a-z-]+)?(\?[\w\-.,~%=&+]*)?$/,
     "Invalid link",
   );
+
+// Algorithm, data structure or problem id, e.g. "quick-sort"
+export const ITEM_ID = /^[a-z-]{1,60}$/;
 
 const summary = z
   .object({
@@ -62,8 +65,8 @@ const input = z
   );
 
 export const createHistorySchema = z.object({
-  kind: z.enum(["algorithm", "data-structure"]),
-  itemId: z.string().regex(/^[a-z-]{1,40}$/, "Invalid item"),
+  kind: z.enum(["algorithm", "data-structure", "problem"]),
+  itemId: z.string().regex(ITEM_ID, "Invalid item"),
   title: z.string().trim().min(1).max(80),
   input: input.default({}),
   summary: summary.default({}),

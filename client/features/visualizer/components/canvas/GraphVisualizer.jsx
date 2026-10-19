@@ -63,6 +63,9 @@ export function GraphVisualizer({
   directed,
   frontierLabel,
   orderLabel = "Visit order",
+  treeLabel = "Discovery edge",
+  weighted = false,
+  vertexLabel = (vertex) => vertex,
 }) {
   const svgRef = useRef(null);
   const [positions, setPositions] = useState(() => circleLayout(vertices));
@@ -73,9 +76,17 @@ export function GraphVisualizer({
   if (!step || positions.length !== vertices) return null;
 
   const frontier = step.frontier ?? [];
+  // Frontier items are vertices, or "vertex:priority" strings (e.g. "2:5")
+  const frontierVertices = frontier.map((item) =>
+    typeof item === "number" ? item : Number(item.split(":")[0]),
+  );
+  const formatItem = (item) =>
+    typeof item === "number"
+      ? vertexLabel(item)
+      : item.replace(/^\d+/, (v) => vertexLabel(Number(v)));
   const vertexRole = (v) => {
     if (v === step.current) return "current";
-    if (frontier.includes(v)) return "frontier";
+    if (frontierVertices.includes(v)) return "frontier";
     if (step.sorted.includes(v)) return "visited";
     return "unvisited";
   };
@@ -118,7 +129,7 @@ export function GraphVisualizer({
         ))}
         <li className="flex items-center gap-1.5">
           <span className="h-0.5 w-4 rounded bg-emerald-500" />
-          Discovery edge
+          {treeLabel}
         </li>
       </ul>
 
@@ -149,7 +160,7 @@ export function GraphVisualizer({
           ))}
         </defs>
 
-        {edges.map(([from, to]) => {
+        {edges.map(([from, to, weight]) => {
           const a = positions[from];
           const b = positions[to];
           if (!a || !b) return null;
@@ -158,18 +169,46 @@ export function GraphVisualizer({
           const uy = (b.y - a.y) / length;
           const gap = RADIUS + (directed ? 4 : 0);
           const style = EDGE_STYLES[edgeRole(from, to)];
+          // Weight label sits beside the middle of the edge
+          const mid = {
+            x: (a.x + b.x) / 2 - uy * 12,
+            y: (a.y + b.y) / 2 + ux * 12,
+          };
           return (
-            <line
-              key={`${from}-${to}`}
-              x1={a.x + ux * RADIUS}
-              y1={a.y + uy * RADIUS}
-              x2={b.x - ux * gap}
-              y2={b.y - uy * gap}
-              className={`${style.stroke} transition-all duration-300`}
-              strokeWidth={style.width}
-              strokeLinecap="round"
-              markerEnd={directed ? `url(#${style.marker})` : undefined}
-            />
+            <g key={`${from}-${to}`}>
+              <line
+                x1={a.x + ux * RADIUS}
+                y1={a.y + uy * RADIUS}
+                x2={b.x - ux * gap}
+                y2={b.y - uy * gap}
+                className={`${style.stroke} transition-all duration-300`}
+                strokeWidth={style.width}
+                strokeLinecap="round"
+                markerEnd={directed ? `url(#${style.marker})` : undefined}
+              />
+              {weighted && (
+                <g
+                  transform={`translate(${mid.x} ${mid.y})`}
+                  className="pointer-events-none"
+                >
+                  <rect
+                    x={-11}
+                    y={-10}
+                    width={22}
+                    height={20}
+                    rx={5}
+                    className="fill-card stroke-border"
+                  />
+                  <text
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    className="fill-foreground font-mono text-xs font-semibold"
+                  >
+                    {weight}
+                  </text>
+                </g>
+              )}
+            </g>
           );
         })}
 
@@ -205,8 +244,17 @@ export function GraphVisualizer({
                 dominantBaseline="central"
                 className="fill-white text-base font-bold pointer-events-none"
               >
-                {vertex}
+                {vertexLabel(vertex)}
               </text>
+              {step.labels?.[vertex] !== undefined && (
+                <text
+                  y={RADIUS + 15}
+                  textAnchor="middle"
+                  className="pointer-events-none fill-violet-600 font-mono text-xs font-bold dark:fill-violet-400"
+                >
+                  {step.labels[vertex]}
+                </text>
+              )}
             </g>
           );
         })}
@@ -222,12 +270,12 @@ export function GraphVisualizer({
                 ? "bottom → top"
                 : undefined
           }
-          items={frontier}
+          items={frontier.map(formatItem)}
           chipClass="bg-violet-500"
         />
         <ChipRow
           title={orderLabel}
-          items={step.order ?? []}
+          items={(step.order ?? []).map(formatItem)}
           chipClass="bg-emerald-500"
           separator="→"
         />

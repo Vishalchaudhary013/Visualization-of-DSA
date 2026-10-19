@@ -38,6 +38,10 @@ client/                          # React SPA frontend (Vite root)
     ├── auth/                    # AuthContext (useAuth), Login/Register/Profile pages, RequireAuth, UserMenu, AccountSettings
     ├── history/                 # API calls, useHistorySync (auto-saves runs), HistoryList, SaveStatus
     ├── compare/                 # /compare: two algorithms on one input (CompareLane), RaceChart of all sorts/searches
+    ├── patterns/                # /patterns roadmap + /patterns/:id (template, practice list, LeetCode-style problem)
+    │   ├── problems/            # Step generators for problems (arrays, graphs, dp) + registry (index.js) + tests
+    │   ├── utils/problemInput.js # Parses LeetCode-format inputs ("[2,7,11,15]", "\"abc\""), URL params
+    │   └── components/          # PatternsMenu (header dropdown), ProblemWorkbench, ProblemInputs, ArrayProblemView
     ├── data-structures/
     │   ├── pages/               # DataStructuresIndex, DataStructurePage (/data-structures/:id)
     │   ├── engines/             # Stack, queue, heap, linked list, BST, hash table, trie, union-find -> steps (+ tests)
@@ -73,7 +77,9 @@ server/                          # Express backend
 
 shared/                          # Code used by both client & server
 ├── algorithms.js                # Algorithm metadata (pseudocode lines are referenced by step generators)
-└── dataStructures.js            # Data structure metadata + per-operation pseudocode
+├── dataStructures.js            # Data structure metadata + per-operation pseudocode
+├── patterns.js                  # Patterns grouped in roadmap order (summary, signals, template, practice, links)
+└── problems.js                  # LeetCode-style problems: statement, fields + limits, examples, JS solution code
 ```
 
 ### Adding an algorithm
@@ -136,7 +142,7 @@ className={`rounded-md px-4 ${isActive ? "bg-primary" : "bg-muted"} ${className 
 - `POST /api/assistant` - Q&A used by the assistant chat (`{ question, algorithmId? }`, id of the algorithm or data structure on screen)
 - `POST /api/auth/register` `{ name, email, password }`, `POST /api/auth/login` `{ email, password }`, `POST /api/auth/logout`
 - `GET /api/auth/me` (`{ user }`, or `{ user: null }` for guests), `PATCH /api/auth/me` `{ name }`, `PUT /api/auth/password` `{ currentPassword, newPassword }`, `DELETE /api/auth/me` `{ password }`
-- `GET /api/history?page&limit&kind&itemId`, `GET /api/history/stats`, `POST /api/history`, `PATCH /api/history/:id`, `DELETE /api/history/:id`, `DELETE /api/history` (all require a session)
+- `GET /api/history?page&limit&kind&itemId`, `GET /api/history/stats`, `POST /api/history`, `PATCH /api/history/:id`, `DELETE /api/history/:id`, `DELETE /api/history` (all require a session). `kind` is `algorithm`, `data-structure` or `problem`
 - `GET /api/ping` - Health check
 
 Path aliases (client):
@@ -201,6 +207,12 @@ router.use("/my-endpoint", myRoutes); // -> GET /api/my-endpoint
 const response = await fetch("/api/my-endpoint");
 const data = await response.json();
 ```
+
+### Adding a pattern problem
+
+1. Add the problem to `shared/problems.js`: `fields` (types `int`, `int[]`, `int[][]` with `tuple`, `string`, with limits), `examples`, `view` (`array`, `graph` or `table`) and the JavaScript solution in `code`.
+2. Write a step generator in `client/features/patterns/problems/` whose steps set `line` to a line of that `code`, and register it (plus any extra input `check`) in `problems/index.js`.
+3. List its id in the pattern's `problems` in `shared/patterns.js`. The tests run the shown `code` and compare its result with the animation's output.
 
 ### Adding a data structure
 

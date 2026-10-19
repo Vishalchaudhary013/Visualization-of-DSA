@@ -51,7 +51,8 @@ export function DpTableVisualizer({ step }) {
                 scope="col"
                 className="px-1 text-left align-bottom text-[10px] font-normal leading-tight text-muted-foreground"
               >
-                {headers.colTitle && `${headers.colTitle} →`}
+                {headers.colTitle && <div>{headers.colTitle} →</div>}
+                {headers.rowTitle && <div>{headers.rowTitle} ↓</div>}
               </th>
               {headers.cols.map((label, col) => (
                 <th

@@ -7,6 +7,7 @@ import {
   LuShare2 as Share,
   LuSparkles as Sparkles,
   LuListOrdered as ListOrdered,
+  LuPuzzle as Puzzle,
 } from "react-icons/lu";
 import { buttonVariants } from "@/features/common/components/ui/button";
 import { AlgorithmCatalog } from "../components/AlgorithmCatalog";
@@ -47,7 +48,7 @@ const FEATURES = [
     icon: Share,
     title: "Shareable links",
     description:
-      "Every setup lives in the URL. Copy it to share an exact example with a friend or class.",
+      "Every setup, including your LeetCode-style inputs, lives in the URL. Copy it to share an exact example.",
   },
 ];
 
@@ -69,8 +70,8 @@ export default function Index() {
             </h1>
             <p className="mx-auto max-w-xl text-lg text-muted-foreground lg:mx-0">
               Interactive, step-by-step visualizations of sorting, searching and
-              graph algorithms, with live pseudocode, explanations and
-              complexity counters.
+              graph algorithms, plus a roadmap of interview patterns with
+              LeetCode-style problems you can run on your own input.
             </p>
             <div className="flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
               <Link to="/visualizer" className={buttonVariants({ size: "lg" })}>
@@ -82,6 +83,12 @@ export default function Index() {
               >
                 Browse algorithms
               </a>
+              <Link
+                to="/patterns"
+                className={buttonVariants({ size: "lg", variant: "outline" })}
+              >
+                <Puzzle /> Practice patterns
+              </Link>
             </div>
           </div>
           <HeroPreview />

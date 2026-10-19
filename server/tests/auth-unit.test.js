@@ -7,6 +7,7 @@ import {
 import { requireAuth } from "../middleware/auth.js";
 import { validateBody } from "../middleware/validate.js";
 import { createHistorySchema, registerSchema } from "../validation/schemas.js";
+import { PROBLEMS } from "../../shared/problems.js";
 
 const mockResponse = () => {
   const res = {};
@@ -92,6 +93,24 @@ describe("history links", () => {
   ])("accepts in-app link %s", (link) => {
     expect(createHistorySchema.safeParse(entry(link)).success).toBe(true);
   });
+
+  it.each(Object.values(PROBLEMS).map((problem) => [problem.id, problem]))(
+    "accepts a run of the %s problem",
+    (_, problem) => {
+      const example = problem.examples.at(-1);
+      const params = new URLSearchParams({ problem: problem.id });
+      for (const field of problem.fields)
+        params.set(field.name, JSON.stringify(example[field.name]));
+      const result = createHistorySchema.safeParse({
+        kind: "problem",
+        itemId: problem.id,
+        title: problem.title,
+        input: example,
+        link: `/patterns/${problem.pattern}?${params}`,
+      });
+      expect(result.success).toBe(true);
+    },
+  );
 
   it.each([
     "//evil.example",

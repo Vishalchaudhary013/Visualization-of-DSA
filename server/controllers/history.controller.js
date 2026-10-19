@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { HistoryEntry } from "../models/HistoryEntry.js";
+import { ITEM_ID } from "../validation/schemas.js";
 
 const MAX_PAGE_SIZE = 50;
 
@@ -17,13 +18,10 @@ export const listHistory = async (req, res) => {
     Math.max(1, Number.parseInt(req.query.limit, 10) || 20),
   );
   const filter = { user: req.userId };
-  if (["algorithm", "data-structure"].includes(req.query.kind)) {
+  if (["algorithm", "data-structure", "problem"].includes(req.query.kind)) {
     filter.kind = req.query.kind;
   }
-  if (
-    typeof req.query.itemId === "string" &&
-    /^[a-z-]{1,40}$/.test(req.query.itemId)
-  ) {
+  if (typeof req.query.itemId === "string" && ITEM_ID.test(req.query.itemId)) {
     filter.itemId = req.query.itemId;
   }
 
@@ -58,11 +56,11 @@ export const getStats = async (req, res) => {
     { $sort: { count: -1, lastUsedAt: -1 } },
   ]);
 
-  const byKind = { algorithm: 0, "data-structure": 0 };
+  const byKind = { algorithm: 0, "data-structure": 0, problem: 0 };
   for (const item of byItem) byKind[item._id.kind] += item.count;
 
   res.json({
-    total: byKind.algorithm + byKind["data-structure"],
+    total: Object.values(byKind).reduce((sum, count) => sum + count, 0),
     byKind,
     byItem: byItem.map((item) => ({
       kind: item._id.kind,

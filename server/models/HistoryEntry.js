@@ -13,12 +13,13 @@ const historyEntrySchema = new mongoose.Schema(
     },
     kind: {
       type: String,
-      enum: ["algorithm", "data-structure"],
+      enum: ["algorithm", "data-structure", "problem"],
       required: true,
     },
     itemId: { type: String, required: true },
     title: { type: String, required: true },
-    // Algorithm: { array, target } or { graph }; data structure: { values, operations }
+    // Algorithm: { array, target }, { graph }…; data structure: { values, operations };
+    // problem: the LeetCode-style fields ({ nums, target }…)
     input: { type: mongoose.Schema.Types.Mixed, default: {} },
     summary: {
       steps: Number,

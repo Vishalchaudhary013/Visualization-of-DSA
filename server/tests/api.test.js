@@ -249,10 +249,24 @@ describe("history", () => {
         link: "/data-structures/heap?values=1",
       })
       .expect(201);
+    await agent
+      .post("/api/history")
+      .send({
+        kind: "problem",
+        itemId: "two-sum",
+        title: "Two Sum",
+        input: { nums: [2, 7], target: 9 },
+        link: "/patterns/hashing?problem=two-sum&nums=%5B2%2C7%5D&target=9",
+      })
+      .expect(201);
 
     const res = await agent.get("/api/history/stats").expect(200);
-    expect(res.body.total).toBe(3);
-    expect(res.body.byKind).toEqual({ algorithm: 2, "data-structure": 1 });
+    expect(res.body.total).toBe(4);
+    expect(res.body.byKind).toEqual({
+      algorithm: 2,
+      "data-structure": 1,
+      problem: 1,
+    });
     expect(res.body.byItem[0]).toMatchObject({
       itemId: "quick-sort",
       count: 2,

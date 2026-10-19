@@ -8,6 +8,7 @@ import {
 } from "react-icons/lu";
 import { buttonVariants } from "@/features/common/components/ui/button";
 import { UserMenu } from "@/features/auth/components/UserMenu";
+import { PatternsMenu } from "@/features/patterns/components/PatternsMenu";
 import { ThemeToggle } from "./ThemeToggle";
 
 const NAV_ITEMS = [
@@ -33,6 +34,7 @@ export function Header() {
               key={to}
               to={to}
               end={end}
+              aria-label={label}
               className={({ isActive }) =>
                 buttonVariants({
                   variant: isActive ? "secondary" : "ghost",
@@ -44,6 +46,7 @@ export function Header() {
               <span className="hidden md:inline">{label}</span>
             </NavLink>
           ))}
+          <PatternsMenu />
           <ThemeToggle />
           <UserMenu />
         </nav>

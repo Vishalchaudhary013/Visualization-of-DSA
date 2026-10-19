@@ -8,12 +8,13 @@ import {
   LuHistory as HistoryIcon,
 } from "react-icons/lu";
 import { Button, buttonVariants } from "@/features/common/components/ui/button";
+import { PROBLEMS } from "@shared/problems";
 import { clearHistory, deleteEntry, fetchHistory } from "../api";
+import { KIND_INFO } from "../kinds";
 
 const FILTERS = [
   ["", "All"],
-  ["algorithm", "Algorithms"],
-  ["data-structure", "Data structures"],
+  ...Object.entries(KIND_INFO).map(([kind, info]) => [kind, info.plural]),
 ];
 const PAGE_SIZE = 10;
 
@@ -25,6 +26,12 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
 /** Short, human description of what the user entered. */
 export function describeInput(entry) {
   const { input = {} } = entry;
+  if (entry.kind === "problem") {
+    const fields = PROBLEMS[entry.itemId]?.fields ?? [];
+    return fields
+      .map((field) => `${field.name} = ${JSON.stringify(input[field.name])}`)
+      .join(", ");
+  }
   if (input.n !== undefined) return `n = ${input.n}`;
   if (input.grid) {
     return `15×25 grid · ${input.grid.walls?.length ?? 0} walls`;
@@ -199,15 +206,9 @@ export function HistoryList({ onChange }) {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-semibold">{entry.title}</span>
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                      entry.kind === "algorithm"
-                        ? "bg-primary/10 text-primary"
-                        : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-                    }`}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${KIND_INFO[entry.kind]?.badge ?? ""}`}
                   >
-                    {entry.kind === "algorithm"
-                      ? "Algorithm"
-                      : "Data structure"}
+                    {KIND_INFO[entry.kind]?.label ?? entry.kind}
                   </span>
                   <span className="text-xs text-muted-foreground">
                     {dateFormat.format(new Date(entry.createdAt))}

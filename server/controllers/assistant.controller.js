@@ -1,5 +1,7 @@
 import { ALGORITHMS } from "../../shared/algorithms.js";
 import { DATA_STRUCTURES } from "../../shared/dataStructures.js";
+import { PATTERN_LIST } from "../../shared/patterns.js";
+import { PROBLEMS } from "../../shared/problems.js";
 import { hasWord, toWords } from "../utils/fuzzyMatch.js";
 
 const ALGORITHM_LIST = Object.values(ALGORITHMS);
@@ -107,6 +109,44 @@ function buildStructureSummary(structure) {
   ].join("\n");
 }
 
+// "Union Find (DSU)" -> ["union find", "DSU"]; "HashMap / HashSet" -> both
+const IGNORED_PATTERN_WORDS = new Set(["s", "and", "algorithm"]);
+const PATTERN_VARIANTS = PATTERN_LIST.map((pattern) => ({
+  pattern,
+  variants: pattern.name
+    .replace(/[()]/g, " / ")
+    .split("/")
+    .map((part) => toWords(part).filter((w) => !IGNORED_PATTERN_WORDS.has(w)))
+    .filter((words) => words.length),
+}));
+
+// Single words like "stack" or "heap" are answered as data structures
+function findMatchingPatterns(question) {
+  const words = toWords(question);
+  const structureWords = new Set(STRUCTURE_KEYWORDS.flatMap((s) => s.words));
+  return PATTERN_VARIANTS.filter(({ variants }) =>
+    variants.some((variant) =>
+      variant.length === 1
+        ? words.includes(variant[0]) && !structureWords.has(variant[0])
+        : variant.every((word) => hasWord(words, [word])),
+    ),
+  ).map(({ pattern }) => pattern);
+}
+
+function buildPatternSummary(pattern) {
+  const problems = pattern.problems.map((id) => PROBLEMS[id].title);
+  return [
+    `**${pattern.name}** (pattern)`,
+    pattern.summary,
+    "Use it when:",
+    ...pattern.signals.map((signal) => `- ${signal}`),
+    `Typical cost: ${pattern.complexity}.`,
+    problems.length
+      ? `Try it step by step on the ${pattern.name} pattern page: ${problems.join(", ")}.`
+      : `Practice: ${pattern.practice.slice(0, 3).join("; ")}.`,
+  ].join("\n");
+}
+
 function findMatchingCategory(question) {
   const words = toWords(question);
   return Object.keys(CATEGORY_KEYWORDS).find((category) =>
@@ -183,6 +223,14 @@ export const askAssistant = (req, res) => {
       .filter(Boolean)
       .join("\n\n");
     return res.json({ reply, matchedIds: matches.map((algo) => algo.id) });
+  }
+
+  const patterns = findMatchingPatterns(question);
+  if (patterns.length) {
+    return res.json({
+      reply: patterns.slice(0, 2).map(buildPatternSummary).join("\n\n"),
+      matchedIds: patterns.map((pattern) => pattern.id),
+    });
   }
 
   const structures = findMatchingStructures(question);
