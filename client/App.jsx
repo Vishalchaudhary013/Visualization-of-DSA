@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/features/common/components/ui/tooltip";
 import { Toaster } from "@/features/common/components/ui/sonner";
 import { Header } from "@/features/common/components/layout/Header";
 import { ScrollToTop } from "@/features/common/components/layout/ScrollToTop";
+import { SeoManager } from "@/features/common/seo/SeoManager";
 import NotFound from "@/features/common/pages/NotFound";
 import Index from "@/features/home/pages/Index";
 import { AssistantChat } from "@/features/assistant/components/AssistantChat";
@@ -37,6 +38,7 @@ function App() {
         <AuthProvider>
           <BrowserRouter>
             <ScrollToTop />
+            <SeoManager />
             <Header />
             <Suspense fallback={<div className="min-h-[calc(100vh-4rem)]" />}>
               <Routes>
