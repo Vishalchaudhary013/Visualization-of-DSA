@@ -1,12 +1,8 @@
 import { useEffect, useMemo } from "react";
 import { useLocation } from "react-router-dom";
-import {
-  LuLightbulb as Lightbulb,
-  LuCircleCheck as CircleCheck,
-} from "react-icons/lu";
+import { LuCircleCheck as CircleCheck } from "react-icons/lu";
 import { PROBLEM_DIFFICULTIES } from "@shared/problems";
 import { PlaybackControls } from "@/features/common/components/playback/PlaybackControls";
-import { PseudocodePanel } from "@/features/common/components/playback/PseudocodePanel";
 import { StepLog } from "@/features/common/components/playback/StepLog";
 import {
   usePlayback,
@@ -21,6 +17,7 @@ import { graphOf } from "../problems/graphs";
 import { solveProblem } from "../utils/problemInput";
 import { ArrayProblemView, MapPanel } from "./ArrayProblemView";
 import { ProblemInputs } from "./ProblemInputs";
+import { SolutionPanel } from "./SolutionPanel";
 
 const DIFFICULTY_BADGE = {
   easy: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
@@ -236,22 +233,7 @@ export function ProblemWorkbench({ problem, input, onRun, link }) {
           </Panel>
 
           <div className="grid grid-cols-1 gap-6 2xl:grid-cols-2">
-            <Panel
-              title="Solution (JavaScript)"
-              aside={
-                step?.line != null && (
-                  <span className="font-mono text-xs text-primary">
-                    line {step.line + 1}
-                  </span>
-                )
-              }
-            >
-              <PseudocodePanel code={problem.code} activeLine={step?.line} />
-              <p className="mt-4 flex gap-2 rounded-lg bg-amber-500/10 p-3 text-sm">
-                <Lightbulb className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-                {problem.idea}
-              </p>
-            </Panel>
+            <SolutionPanel problem={problem} line={step?.line} />
             <Panel title="Step log">
               <StepLog
                 steps={playback.steps}

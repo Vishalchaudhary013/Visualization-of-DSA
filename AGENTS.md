@@ -21,12 +21,12 @@ client/                          # React SPA frontend (Vite root)
 ├── index.html                   # HTML entry
 ├── App.jsx                      # Providers (theme, tooltips, toasts) + routes (Visualizer is lazy-loaded)
 ├── vite.config.js               # Vite config (React + Tailwind plugins, aliases, build → ../dist/spa)
-├── public/                      # Static files copied as-is to the site root (robots.txt)
+├── public/                      # Static files copied as-is to the site root (favicon.svg, apple-touch-icon.png, robots.txt)
 └── features/
     ├── global.css               # Tailwind v4 config: tokens, @theme, @custom-variant dark, @utility
     ├── common/                  # Shared across features
     │   ├── components/ui/       # Radix-based UI primitives (only the ones in use)
-    │   ├── components/layout/   # Header, ThemeToggle, ScrollToTop
+    │   ├── components/layout/   # Header, Logo (brand mark + wordmark; same drawing as public/favicon.svg), ThemeToggle, ScrollToTop
     │   ├── components/playback/ # PlaybackControls, PseudocodePanel, StepLog (visualizer + data structures)
     │   ├── hooks/               # usePlayback, useKeyboardShortcuts
     │   ├── lib/api.js           # fetch wrapper for /api (JSON, cookies, ApiError)
@@ -41,7 +41,8 @@ client/                          # React SPA frontend (Vite root)
     ├── patterns/                # /patterns roadmap + /patterns/:id (template, practice list, LeetCode-style problem)
     │   ├── problems/            # Step generators for problems (arrays, graphs, dp) + registry (index.js) + tests
     │   ├── utils/problemInput.js # Parses LeetCode-format inputs ("[2,7,11,15]", "\"abc\""), URL params
-    │   └── components/          # PatternsMenu (header dropdown), ProblemWorkbench, ProblemInputs, ArrayProblemView
+    │   └── components/          # PatternsMenu (header dropdown), ProblemWorkbench, ProblemInputs, ArrayProblemView,
+    │                            #   SolutionPanel (language dropdown: JavaScript / Python / Java / C++)
     ├── data-structures/
     │   ├── pages/               # DataStructuresIndex, DataStructurePage (/data-structures/:id)
     │   ├── engines/             # Stack, queue, heap, linked list, BST, hash table, trie, union-find -> steps (+ tests)
@@ -79,7 +80,8 @@ shared/                          # Code used by both client & server
 ├── algorithms.js                # Algorithm metadata (pseudocode lines are referenced by step generators)
 ├── dataStructures.js            # Data structure metadata + per-operation pseudocode
 ├── patterns.js                  # Patterns grouped in roadmap order (summary, signals, template, practice, links)
-└── problems.js                  # LeetCode-style problems: statement, fields + limits, examples, JS solution code
+├── problems.js                  # LeetCode-style problems: statement, fields + limits, examples, JS solution code
+└── solutions.js                 # The same solutions in Python, Java and C++, with a line map to the JS code
 ```
 
 ### Adding an algorithm
@@ -212,7 +214,8 @@ const data = await response.json();
 
 1. Add the problem to `shared/problems.js`: `fields` (types `int`, `int[]`, `int[][]` with `tuple`, `string`, with limits), `examples`, `view` (`array`, `graph` or `table`) and the JavaScript solution in `code`.
 2. Write a step generator in `client/features/patterns/problems/` whose steps set `line` to a line of that `code`, and register it (plus any extra input `check`) in `problems/index.js`.
-3. List its id in the pattern's `problems` in `shared/patterns.js`. The tests run the shown `code` and compare its result with the animation's output.
+3. Add Python, Java and C++ versions to `shared/solutions.js` (LeetCode style, a `Solution` class with the same method name). `lines[i]` is the line of that language matching line `i` of the JavaScript code, so the highlight follows the animation.
+4. List its id in the pattern's `problems` in `shared/patterns.js`. The tests run the shown JavaScript and compare its result with the animation's output; when `python3`, `javac` and `g++` are installed they also compile and run the other languages on the same inputs.
 
 ### Adding a data structure
 

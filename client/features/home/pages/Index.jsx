@@ -12,6 +12,7 @@ import {
 import { buttonVariants } from "@/features/common/components/ui/button";
 import { AlgorithmCatalog } from "../components/AlgorithmCatalog";
 import { HeroPreview } from "../components/HeroPreview";
+import { Logo } from "@/features/common/components/layout/Logo";
 
 const FEATURES = [
   {
@@ -126,11 +127,9 @@ export default function Index() {
 
       <footer className="border-t border-border bg-card py-8">
         <div className="container mx-auto flex flex-col items-center justify-between gap-2 px-4 text-sm text-muted-foreground md:flex-row">
-          <p>
-            <span className="font-semibold text-foreground">
-              Algorithm Visualizer
-            </span>{" "}
-            · learn DSA by watching it run
+          <p className="flex items-center gap-2">
+            <Logo className="text-base! text-foreground" />
+            <span>· learn DSA by watching it run</span>
           </p>
           <p>© {new Date().getFullYear()} Algorithm Visualizer</p>
         </div>
