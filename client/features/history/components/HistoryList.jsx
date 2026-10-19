@@ -25,9 +25,9 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
 /** Short, human description of what the user entered. */
 export function describeInput(entry) {
   const { input = {} } = entry;
+  if (input.n !== undefined) return `n = ${input.n}`;
   if (input.grid) {
-    const { walls = [], weights = [] } = input.grid;
-    return `15×25 grid · ${walls.length} walls · ${weights.length} heavy cells`;
+    return `15×25 grid · ${input.grid.walls?.length ?? 0} walls`;
   }
   if (input.graph) {
     const { vertices, edges = [], start, directed } = input.graph;

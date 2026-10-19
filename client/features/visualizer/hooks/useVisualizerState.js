@@ -23,6 +23,7 @@ function createDefaults() {
     start: 0,
     directed: false,
     grid: defaultGrid(),
+    n: 10,
   };
 }
 
@@ -79,5 +80,6 @@ export function useVisualizerState() {
     setTarget: (target) => update({ target }),
     setGraph: (graph) => update(graph),
     setGrid: (grid) => update({ grid }),
+    setN: (n) => update({ n }),
   };
 }

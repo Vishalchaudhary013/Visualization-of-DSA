@@ -673,380 +673,11 @@ dfs(v)
       "Maze solving and path finding",
     ],
   },
-  dijkstra: {
-    id: "dijkstra",
-    name: "Dijkstra's Algorithm",
-    description:
-      "Finds the shortest path from one vertex to every other vertex in a graph with non-negative edge weights.",
-    category: "graph-algorithms",
-    complexity: {
-      time: {
-        best: "O((V + E) log V)",
-        average: "O((V + E) log V)",
-        worst: "O((V + E) log V)",
-      },
-      space: "O(V)",
-    },
-    pseudoCode: `dijkstra(graph, start)
-  dist[all] = ∞; dist[start] = 0; pq = {(0, start)}
-  while pq not empty
-    (d, u) = pq.popMin()
-    if d > dist[u]: skip outdated entry
-    for each edge (u, v, w)
-      if dist[u] + w < dist[v]
-        dist[v] = dist[u] + w; prev[v] = u; pq.push((dist[v], v))`,
-    jsCode: `function dijkstra(graph, start) {
-  // graph: Map<vertex, Array<{ to, weight }>>
-  const dist = new Map([...graph.keys()].map((v) => [v, Infinity]));
-  const prev = new Map();
-  dist.set(start, 0);
-  const pq = [[0, start]]; // use a binary heap for large graphs
-  while (pq.length) {
-    pq.sort((a, b) => a[0] - b[0]);
-    const [d, u] = pq.shift();
-    if (d > dist.get(u)) continue;
-    for (const { to: v, weight } of graph.get(u)) {
-      const candidate = d + weight;
-      if (candidate < dist.get(v)) {
-        dist.set(v, candidate);
-        prev.set(v, u);
-        pq.push([candidate, v]);
-      }
-    }
-  }
-  return { dist, prev };
-}`,
-    difficulty: "advanced",
-    tags: ["graph", "shortest-path", "greedy", "priority-queue"],
-    howItWorks: [
-      "Give the start distance 0 and every other vertex ∞.",
-      "Repeatedly take the unfinished vertex with the smallest distance: its distance is now final.",
-      "Relax its edges: if going through it gives a neighbour a shorter distance, update that neighbour.",
-      "The edges that produced the final distances form the shortest-path tree.",
-      "Negative weights break the greedy choice; use Bellman-Ford for those.",
-    ],
-    useCases: [
-      "Maps and GPS routing",
-      "Network routing protocols (OSPF)",
-      "Cheapest path in any weighted network",
-    ],
-  },
-  "bellman-ford": {
-    id: "bellman-ford",
-    name: "Bellman-Ford",
-    description:
-      "Finds shortest paths from one vertex even when some edges have negative weights, and detects negative cycles.",
-    category: "graph-algorithms",
-    complexity: {
-      time: { best: "O(E)", average: "O(V · E)", worst: "O(V · E)" },
-      space: "O(V)",
-    },
-    pseudoCode: `bellmanFord(graph, start)
-  dist[all] = ∞; dist[start] = 0
-  repeat V - 1 times (stop early if nothing changes)
-    for each edge (u, v, w)
-      if dist[u] + w < dist[v]
-        dist[v] = dist[u] + w; prev[v] = u
-  check every edge (u, v, w) once more
-    if dist[u] + w < dist[v]: negative cycle!`,
-    jsCode: `function bellmanFord(vertexCount, edges, start) {
-  // edges: Array<[u, v, weight]> (directed, weights may be negative)
-  const dist = Array(vertexCount).fill(Infinity);
-  const prev = Array(vertexCount).fill(null);
-  dist[start] = 0;
-  for (let round = 1; round < vertexCount; round++) {
-    let changed = false;
-    for (const [u, v, w] of edges) {
-      if (dist[u] + w < dist[v]) {
-        dist[v] = dist[u] + w;
-        prev[v] = u;
-        changed = true;
-      }
-    }
-    if (!changed) break;
-  }
-  for (const [u, v, w] of edges) {
-    if (dist[u] + w < dist[v]) throw new Error("Negative cycle");
-  }
-  return { dist, prev };
-}`,
-    difficulty: "advanced",
-    tags: ["graph", "shortest-path", "negative weights", "dynamic programming"],
-    howItWorks: [
-      "Start with dist = 0 at the start and ∞ everywhere else.",
-      "In each round, try every edge: if it gives a shorter way to its end vertex, update it (relax).",
-      "A shortest path has at most V − 1 edges, so V − 1 rounds are enough; often it settles sooner.",
-      "If an edge can still improve a distance after that, a negative cycle exists and 'shortest' has no meaning.",
-      "Slower than Dijkstra, but correct with negative weights.",
-    ],
-    useCases: [
-      "Graphs with negative costs (refunds, gains)",
-      "Currency arbitrage detection (negative cycles)",
-      "Distance-vector routing (RIP)",
-    ],
-  },
-  prim: {
-    id: "prim",
-    name: "Prim's Algorithm",
-    description:
-      "Builds a minimum spanning tree by growing one tree from a start vertex, always adding the cheapest edge that reaches a new vertex.",
-    category: "graph-algorithms",
-    complexity: {
-      time: { best: "O(E log V)", average: "O(E log V)", worst: "O(E log V)" },
-      space: "O(V + E)",
-    },
-    pseudoCode: `prim(graph, start)
-  tree = {start}; candidates = edges of start
-  while candidates and tree is missing vertices
-    (u, v, w) = cheapest candidate; if v in tree: skip
-    add v and edge (u, v) to the tree
-    add v's edges to vertices outside the tree as candidates`,
-    jsCode: `function prim(graph, start) {
-  // graph: Map<vertex, Array<{ to, weight }>> (undirected)
-  const inTree = new Set([start]);
-  const tree = [];
-  let candidates = graph.get(start).map((e) => ({ from: start, ...e }));
-  while (candidates.length && inTree.size < graph.size) {
-    candidates.sort((a, b) => a.weight - b.weight);
-    const { from, to, weight } = candidates.shift();
-    if (inTree.has(to)) continue;
-    inTree.add(to);
-    tree.push([from, to, weight]);
-    for (const edge of graph.get(to)) {
-      if (!inTree.has(edge.to)) candidates.push({ from: to, ...edge });
-    }
-  }
-  return tree;
-}`,
-    difficulty: "advanced",
-    tags: ["graph", "minimum-spanning-tree", "greedy"],
-    howItWorks: [
-      "Start a tree with a single vertex.",
-      "Look at every edge from the tree to a vertex outside it.",
-      "Add the cheapest one, together with its new vertex.",
-      "Repeat until every vertex is in the tree: the result has the smallest possible total weight.",
-    ],
-    useCases: [
-      "Designing cheapest cable, road or pipe networks",
-      "Clustering (cut the heaviest tree edges)",
-      "Approximating the travelling salesman problem",
-    ],
-  },
-  kruskal: {
-    id: "kruskal",
-    name: "Kruskal's Algorithm",
-    description:
-      "Builds a minimum spanning tree by taking edges from cheapest to most expensive and skipping any that would form a cycle.",
-    category: "graph-algorithms",
-    complexity: {
-      time: { best: "O(E log E)", average: "O(E log E)", worst: "O(E log E)" },
-      space: "O(V)",
-    },
-    pseudoCode: `kruskal(graph)
-  sort edges by weight; make each vertex its own set
-  for each edge (u, v, w) in sorted order
-    if find(u) != find(v)
-      union(u, v); add (u, v) to the tree
-    else: skip, it would form a cycle`,
-    jsCode: `function kruskal(vertexCount, edges) {
-  // edges: Array<[u, v, weight]>
-  const parent = Array.from({ length: vertexCount }, (_, v) => v);
-  const find = (v) => (parent[v] === v ? v : (parent[v] = find(parent[v])));
-  const tree = [];
-  for (const [u, v, w] of [...edges].sort((a, b) => a[2] - b[2])) {
-    const rootU = find(u);
-    const rootV = find(v);
-    if (rootU !== rootV) {
-      parent[rootU] = rootV;
-      tree.push([u, v, w]);
-    }
-  }
-  return tree;
-}`,
-    difficulty: "advanced",
-    tags: ["graph", "minimum-spanning-tree", "greedy", "union-find"],
-    howItWorks: [
-      "Sort all edges from cheapest to most expensive.",
-      "Every vertex starts as its own little tree (a disjoint set).",
-      "Take the next edge: if its ends are in different trees, add it and merge the trees.",
-      "If both ends are already connected, the edge would make a cycle, so skip it.",
-      "Union-find makes the 'already connected?' check almost O(1).",
-    ],
-    useCases: [
-      "Cheapest network design on sparse graphs",
-      "Image segmentation and clustering",
-      "A classic use of the union-find data structure",
-    ],
-  },
-  "topological-sort": {
-    id: "topological-sort",
-    name: "Topological Sort",
-    description:
-      "Orders the vertices of a directed acyclic graph so that every edge points from an earlier vertex to a later one (Kahn's algorithm).",
-    category: "graph-algorithms",
-    complexity: {
-      time: { best: "O(V + E)", average: "O(V + E)", worst: "O(V + E)" },
-      space: "O(V)",
-    },
-    pseudoCode: `topologicalSort(graph)
-  indegree[v] = incoming edges; queue = vertices with indegree 0
-  while queue not empty
-    u = queue.dequeue(); order.append(u)
-    for each edge u → v
-      indegree[v] = indegree[v] - 1
-      if indegree[v] == 0: queue.enqueue(v)
-  if order has fewer than V vertices: there is a cycle`,
-    jsCode: `function topologicalSort(graph) {
-  // graph: Map<vertex, Array<vertex>> (directed)
-  const indegree = new Map([...graph.keys()].map((v) => [v, 0]));
-  for (const targets of graph.values()) {
-    for (const v of targets) indegree.set(v, indegree.get(v) + 1);
-  }
-  const queue = [...graph.keys()].filter((v) => indegree.get(v) === 0);
-  const order = [];
-  while (queue.length) {
-    const u = queue.shift();
-    order.push(u);
-    for (const v of graph.get(u)) {
-      indegree.set(v, indegree.get(v) - 1);
-      if (indegree.get(v) === 0) queue.push(v);
-    }
-  }
-  if (order.length < graph.size) throw new Error("Graph has a cycle");
-  return order;
-}`,
-    difficulty: "intermediate",
-    tags: ["graph", "directed", "DAG", "queue"],
-    howItWorks: [
-      "Count each vertex's incoming edges (its prerequisites).",
-      "Vertices with no prerequisites can go first: put them in a queue.",
-      "Take one out, add it to the order, and remove its outgoing edges.",
-      "Any vertex whose count drops to 0 joins the queue.",
-      "If some vertices never reach 0, the graph has a cycle and no valid order exists.",
-    ],
-    useCases: [
-      "Task scheduling with dependencies",
-      "Build systems and package managers",
-      "Course prerequisite planning",
-    ],
-  },
-  "a-star": {
-    id: "a-star",
-    name: "A* Search",
-    description:
-      "Finds the cheapest path on a grid by exploring cells in order of cost so far plus a guess of the distance left.",
-    category: "pathfinding",
-    complexity: {
-      time: { best: "O(d)", average: "O(E log V)", worst: "O(E log V)" },
-      space: "O(V)",
-    },
-    pseudoCode: `aStar(grid, start, goal)
-  g[start] = 0; open = {start}
-  while open is not empty
-    current = cell in open with the lowest f = g + h
-    if current == goal: follow parents back to start, done
-    for each neighbour n of current that is not a wall
-      cost = g[current] + cost(n)   // 1, or 5 for a heavy cell
-      if cost < g[n]: g[n] = cost; parent[n] = current; add n to open
-  no path: the goal is walled off`,
-    jsCode: `function aStar(grid, start, goal) {
-  // grid.neighbours(cell) -> open cells, grid.cost(cell) -> 1 or 5
-  const h = (cell) => manhattan(cell, goal);
-  const g = new Map([[start, 0]]);
-  const parent = new Map();
-  const open = [{ cell: start, f: h(start) }]; // use a binary heap for big grids
-  const closed = new Set();
-  while (open.length) {
-    open.sort((a, b) => a.f - b.f);
-    const { cell } = open.shift();
-    if (closed.has(cell)) continue;
-    if (cell === goal) return buildPath(parent, goal);
-    closed.add(cell);
-    for (const next of grid.neighbours(cell)) {
-      const cost = g.get(cell) + grid.cost(next);
-      if (cost < (g.get(next) ?? Infinity)) {
-        g.set(next, cost);
-        parent.set(next, cell);
-        open.push({ cell: next, f: cost + h(next) });
-      }
-    }
-  }
-  return null; // no path
-}`,
-    difficulty: "advanced",
-    tags: ["pathfinding", "heuristic", "grid", "optimal"],
-    howItWorks: [
-      "Every cell gets g = the cheapest known cost from the start, and h = a guess of the distance to the goal (Manhattan distance).",
-      "Always explore the frontier cell with the smallest f = g + h: the most promising one.",
-      "Update neighbours when going through the current cell is cheaper.",
-      "Because h never overestimates, the first time the goal is explored the path is optimal.",
-      "It explores far fewer cells than Dijkstra by heading towards the goal.",
-    ],
-    useCases: [
-      "Game AI and unit movement",
-      "Route planning on maps",
-      "Robot navigation",
-    ],
-  },
-  "grid-dijkstra": {
-    id: "grid-dijkstra",
-    name: "Dijkstra on a Grid",
-    description:
-      "Finds the cheapest path on a grid by always exploring the cell with the lowest cost so far, spreading out evenly in every direction.",
-    category: "pathfinding",
-    complexity: {
-      time: { best: "O(E log V)", average: "O(E log V)", worst: "O(E log V)" },
-      space: "O(V)",
-    },
-    pseudoCode: `dijkstra(grid, start, goal)
-  g[start] = 0; open = {start}
-  while open is not empty
-    current = cell in open with the lowest cost g
-    if current == goal: follow parents back to start, done
-    for each neighbour n of current that is not a wall
-      cost = g[current] + cost(n)   // 1, or 5 for a heavy cell
-      if cost < g[n]: g[n] = cost; parent[n] = current; add n to open
-  no path: the goal is walled off`,
-    jsCode: `function dijkstraGrid(grid, start, goal) {
-  const g = new Map([[start, 0]]);
-  const parent = new Map();
-  const open = [{ cell: start, g: 0 }];
-  const closed = new Set();
-  while (open.length) {
-    open.sort((a, b) => a.g - b.g);
-    const { cell } = open.shift();
-    if (closed.has(cell)) continue;
-    if (cell === goal) return buildPath(parent, goal);
-    closed.add(cell);
-    for (const next of grid.neighbours(cell)) {
-      const cost = g.get(cell) + grid.cost(next);
-      if (cost < (g.get(next) ?? Infinity)) {
-        g.set(next, cost);
-        parent.set(next, cell);
-        open.push({ cell: next, g: cost });
-      }
-    }
-  }
-  return null;
-}`,
-    difficulty: "advanced",
-    tags: ["pathfinding", "grid", "optimal", "weighted"],
-    howItWorks: [
-      "Start with cost 0 at the start cell.",
-      "Always explore the frontier cell with the lowest cost so far.",
-      "Entering a normal cell costs 1, a heavy cell costs 5.",
-      "It finds the cheapest path but has no sense of direction, so it explores a growing 'circle' around the start.",
-    ],
-    useCases: [
-      "Cheapest routes when terrain has different costs",
-      "Baseline to compare A* against",
-    ],
-  },
   "grid-bfs": {
     id: "grid-bfs",
     name: "BFS on a Grid",
     description:
-      "Explores the grid ring by ring from the start with a queue, finding the path with the fewest moves (ignoring cell costs).",
+      "Explores the grid ring by ring from the start with a queue, finding the path with the fewest moves.",
     category: "pathfinding",
     complexity: {
       time: { best: "O(V + E)", average: "O(V + E)", worst: "O(V + E)" },
@@ -1084,7 +715,7 @@ dfs(v)
       "Put the start in a queue.",
       "Take the oldest cell from the queue and add its unseen neighbours to the back.",
       "Cells come out in order of how many moves they are from the start.",
-      "The first path to reach the goal has the fewest moves, but heavy cells are treated like normal ones.",
+      "The first path to reach the goal has the fewest moves.",
     ],
     useCases: [
       "Shortest paths when every move costs the same",
@@ -1099,7 +730,7 @@ dfs(v)
       "Rushes towards the goal by always exploring the cell that looks closest to it. Fast, but the path it finds is not always the shortest.",
     category: "pathfinding",
     complexity: {
-      time: { best: "O(d)", average: "O(E log V)", worst: "O(E log V)" },
+      time: { best: "O(d)", average: "O(V log V)", worst: "O(V log V)" },
       space: "O(V)",
     },
     pseudoCode: `greedyBestFirst(grid, start, goal)
@@ -1133,14 +764,49 @@ dfs(v)
     difficulty: "intermediate",
     tags: ["pathfinding", "heuristic", "grid", "not optimal"],
     howItWorks: [
-      "Only the guess h (distance to the goal) decides what to explore next; the cost so far is ignored.",
+      "Only the guess h (distance to the goal, ignoring walls) decides what to explore next; the moves so far are ignored.",
       "It heads straight for the goal and often explores very few cells.",
       "Walls in the way can lead it into dead ends, and the path can be longer than necessary.",
-      "Compare it with A*, which balances the guess with the real cost.",
+      "Compare it with BFS on a Grid, which always finds the fewest moves but explores more cells.",
     ],
     useCases: [
       "Quick 'good enough' paths",
-      "Showing why A* adds the cost so far",
+      "Showing why a good guess is not enough for the shortest path",
+    ],
+  },
+  fibonacci: {
+    id: "fibonacci",
+    name: "Fibonacci (Bottom-Up)",
+    description:
+      "Computes Fibonacci numbers by filling a table from the smallest case up, so each value is calculated exactly once.",
+    category: "dynamic-programming",
+    complexity: {
+      time: { best: "O(n)", average: "O(n)", worst: "O(n)" },
+      space: "O(n)",
+    },
+    pseudoCode: `fib(n)
+  dp[0] = 0; dp[1] = 1
+  for i from 2 to n
+    dp[i] = dp[i-1] + dp[i-2]
+  return dp[n]`,
+    jsCode: `function fib(n) {
+  const dp = [0, 1];
+  for (let i = 2; i <= n; i++) {
+    dp[i] = dp[i - 1] + dp[i - 2];
+  }
+  return dp[n];
+}`,
+    difficulty: "beginner",
+    tags: ["dynamic programming", "tabulation", "1-D table"],
+    howItWorks: [
+      "Plain recursion recomputes the same values again and again: fib(n) makes about 1.6ⁿ calls.",
+      "Dynamic programming stores each answer in a table the first time it is computed.",
+      "Bottom-up (tabulation) fills the table from the base cases fib(0) and fib(1) upwards.",
+      "Each cell only needs the two cells before it, so the whole table takes n − 1 additions.",
+    ],
+    useCases: [
+      "The classic first example of overlapping subproblems",
+      "Counting ways to climb stairs or tile a board",
     ],
   },
 };
@@ -1149,8 +815,8 @@ export const ALGORITHM_CATEGORIES = {
   sorting: "Sorting",
   searching: "Searching",
   "graph-traversal": "Graph Traversal",
-  "graph-algorithms": "Weighted & Directed Graphs",
   pathfinding: "Grid Pathfinding",
+  "dynamic-programming": "Dynamic Programming",
 };
 
 export const DIFFICULTIES = {

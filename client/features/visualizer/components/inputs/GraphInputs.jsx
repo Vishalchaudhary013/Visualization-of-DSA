@@ -22,42 +22,9 @@ import {
   parseEdges,
 } from "../../utils/inputs";
 
-// 1 → 2 → 3 → 1 has total weight 4 - 6 + 1 = -1
-const NEGATIVE_CYCLE_EXAMPLE = {
-  vertices: 5,
-  start: 0,
-  edges: [
-    [0, 1, 3],
-    [1, 2, 4],
-    [2, 3, -6],
-    [3, 1, 1],
-    [3, 4, 2],
-  ],
-};
-
-const DIRECTED_NOTES = {
-  undirected:
-    "This algorithm works on undirected graphs, so edges count both ways.",
-  directed:
-    "Topological order only exists for directed graphs, so edges point from → to.",
-};
-
-export function GraphInputs({
-  graph,
-  onGraphChange,
-  weighted = false,
-  directedMode,
-  needsStart = true,
-  negativeWeights = false,
-}) {
-  const { vertices, edges, start } = graph;
-  const directed =
-    directedMode === "directed"
-      ? true
-      : directedMode === "undirected"
-        ? false
-        : graph.directed;
-  const formatted = formatEdges(edges, { weighted });
+export function GraphInputs({ graph, onGraphChange }) {
+  const { vertices, edges, start, directed } = graph;
+  const formatted = formatEdges(edges);
   const [text, setText] = useState(formatted);
   const [error, setError] = useState(null);
 
@@ -69,7 +36,6 @@ export function GraphInputs({
   const update = (changes) => onGraphChange({ ...graph, ...changes });
 
   const applyText = () => {
-    // Unchanged text must not re-parse: hidden weights would reset to 1
     if (text === formatted) return;
     const { edges: parsed, error: parseError } = parseEdges(text, vertices);
     if (parseError) {
@@ -96,7 +62,7 @@ export function GraphInputs({
           onValueChange={([count]) =>
             update({
               vertices: count,
-              edges: generateGraphEdges(count, { negative: negativeWeights }),
+              edges: generateGraphEdges(count),
               start: Math.min(start, count - 1),
             })
           }
@@ -107,48 +73,31 @@ export function GraphInputs({
         variant="outline"
         size="sm"
         className="w-full"
-        onClick={() =>
-          update({
-            edges: generateGraphEdges(vertices, { negative: negativeWeights }),
-          })
-        }
+        onClick={() => update({ edges: generateGraphEdges(vertices) })}
       >
         <Shuffle />
         New random graph
       </Button>
-      {negativeWeights && (
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full"
-          onClick={() => update({ ...NEGATIVE_CYCLE_EXAMPLE })}
+      <div className="space-y-2">
+        <Label htmlFor="start-vertex" className="text-sm">
+          Start vertex
+        </Label>
+        <Select
+          value={String(start)}
+          onValueChange={(value) => update({ start: Number(value) })}
         >
-          Example with a negative cycle
-        </Button>
-      )}
-
-      {needsStart && (
-        <div className="space-y-2">
-          <Label htmlFor="start-vertex" className="text-sm">
-            Start vertex
-          </Label>
-          <Select
-            value={String(start)}
-            onValueChange={(value) => update({ start: Number(value) })}
-          >
-            <SelectTrigger id="start-vertex">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Array.from({ length: vertices }, (_, index) => (
-                <SelectItem key={index} value={String(index)}>
-                  Vertex {index}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+          <SelectTrigger id="start-vertex">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {Array.from({ length: vertices }, (_, index) => (
+              <SelectItem key={index} value={String(index)}>
+                Vertex {index}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
@@ -158,15 +107,9 @@ export function GraphInputs({
           <Switch
             id="directed"
             checked={directed}
-            disabled={Boolean(directedMode)}
             onCheckedChange={(checked) => update({ directed: checked })}
           />
         </div>
-        {directedMode && (
-          <p className="text-xs text-muted-foreground">
-            {DIRECTED_NOTES[directedMode]}
-          </p>
-        )}
       </div>
 
       <div className="space-y-2">
@@ -175,7 +118,7 @@ export function GraphInputs({
         </Label>
         <Textarea
           id="graph-edges"
-          placeholder={weighted ? "0-1:4\n1-2:7\n2-3:1" : "0-1\n1-2\n2-3"}
+          placeholder={"0-1\n1-2\n2-3"}
           value={text}
           onChange={(event) => setText(event.target.value)}
           onBlur={applyText}
@@ -193,12 +136,9 @@ export function GraphInputs({
           </p>
         ) : (
           <p className="text-xs text-muted-foreground">
-            Write edges as{" "}
-            <code className="font-mono">
-              {weighted ? "from-to:weight" : "from-to"}
-            </code>
-            . Changes apply when you leave the box. Drag vertices on the canvas
-            to rearrange them.
+            Write edges as <code className="font-mono">from-to</code>. Changes
+            apply when you leave the box. Drag vertices on the canvas to
+            rearrange them.
           </p>
         )}
       </div>

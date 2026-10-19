@@ -18,20 +18,15 @@ import {
   interpolationSearch,
 } from "./searching.js";
 import { bfs, dfs } from "./graph.js";
-import {
-  bellmanFord,
-  dijkstra,
-  kruskal,
-  prim,
-  topologicalSort,
-} from "./weightedGraph.js";
 import { gridSearch } from "./pathfinding.js";
+import { fibonacci } from "./dynamicProgramming.js";
 
 export const ALGORITHM_KINDS = {
   SORT: "sort",
   SEARCH: "search",
   GRAPH: "graph",
   GRID: "grid",
+  DP: "dp",
 };
 
 const grid = (mode) => ({
@@ -43,6 +38,18 @@ const sort = (run, markerLabel) => ({
   kind: ALGORITHM_KINDS.SORT,
   markerLabel,
   run: ({ array }) => run(array),
+});
+
+// Searches that need sorted input sort a copy first
+const sortedSearch = (run, markerLabel) => ({
+  kind: ALGORITHM_KINDS.SEARCH,
+  markerLabel,
+  needsSortedInput: true,
+  run: ({ array, target }) =>
+    run(
+      [...array].sort((a, b) => a - b),
+      target,
+    ),
 });
 
 export const ALGORITHM_RUNNERS = {
@@ -59,36 +66,9 @@ export const ALGORITHM_RUNNERS = {
     kind: ALGORITHM_KINDS.SEARCH,
     run: ({ array, target }) => linearSearch(array, target),
   },
-  "binary-search": {
-    kind: ALGORITHM_KINDS.SEARCH,
-    markerLabel: "Mid",
-    needsSortedInput: true,
-    run: ({ array, target }) =>
-      binarySearch(
-        [...array].sort((a, b) => a - b),
-        target,
-      ),
-  },
-  "jump-search": {
-    kind: ALGORITHM_KINDS.SEARCH,
-    markerLabel: "Block end",
-    needsSortedInput: true,
-    run: ({ array, target }) =>
-      jumpSearch(
-        [...array].sort((a, b) => a - b),
-        target,
-      ),
-  },
-  "interpolation-search": {
-    kind: ALGORITHM_KINDS.SEARCH,
-    markerLabel: "Guess",
-    needsSortedInput: true,
-    run: ({ array, target }) =>
-      interpolationSearch(
-        [...array].sort((a, b) => a - b),
-        target,
-      ),
-  },
+  "binary-search": sortedSearch(binarySearch, "Mid"),
+  "jump-search": sortedSearch(jumpSearch, "Block end"),
+  "interpolation-search": sortedSearch(interpolationSearch, "Guess"),
   bfs: {
     kind: ALGORITHM_KINDS.GRAPH,
     frontierLabel: "Queue",
@@ -103,70 +83,14 @@ export const ALGORITHM_RUNNERS = {
     run: ({ graph }) =>
       dfs(graph.vertices, graph.edges, graph.start, graph.directed),
   },
-  dijkstra: {
-    kind: ALGORITHM_KINDS.GRAPH,
-    weighted: true,
-    frontierLabel: "Priority queue (vertex:distance)",
-    orderLabel: "Finalized",
-    run: ({ graph }) =>
-      dijkstra(graph.vertices, graph.edges, graph.start, graph.directed),
-  },
-  "bellman-ford": {
-    kind: ALGORITHM_KINDS.GRAPH,
-    weighted: true,
-    negativeWeights: true,
-    directedMode: "directed",
-    frontierLabel: "Updated this round",
-    orderLabel: "Updates per round",
-    run: ({ graph }) =>
-      bellmanFord(graph.vertices, graph.edges, graph.start, true),
-  },
-  prim: {
-    kind: ALGORITHM_KINDS.GRAPH,
-    weighted: true,
-    directedMode: "undirected",
-    frontierLabel: "Candidate edges",
-    orderLabel: "Tree edges",
-    run: ({ graph }) => prim(graph.vertices, graph.edges, graph.start),
-  },
-  kruskal: {
-    kind: ALGORITHM_KINDS.GRAPH,
-    weighted: true,
-    directedMode: "undirected",
-    needsStart: false,
-    frontierLabel: "Edges left (cheapest first)",
-    orderLabel: "Tree edges",
-    run: ({ graph }) => kruskal(graph.vertices, graph.edges),
-  },
-  "topological-sort": {
-    kind: ALGORITHM_KINDS.GRAPH,
-    directedMode: "directed",
-    needsStart: false,
-    frontierLabel: "Queue (no incoming edges)",
-    orderLabel: "Topological order",
-    run: ({ graph }) => topologicalSort(graph.vertices, graph.edges),
-  },
-  "a-star": grid("astar"),
-  "grid-dijkstra": grid("dijkstra"),
   "grid-bfs": grid("bfs"),
   "greedy-best-first": grid("greedy"),
+  fibonacci: {
+    kind: ALGORITHM_KINDS.DP,
+    run: ({ n }) => fibonacci(n),
+  },
 };
 
-/**
- * The graph as the algorithm sees it: some algorithms only make sense on
- * undirected (MST) or directed (topological sort) graphs.
- */
-export function effectiveGraph(id, graph) {
-  const mode = ALGORITHM_RUNNERS[id]?.directedMode;
-  if (mode === "directed") return { ...graph, directed: true };
-  if (mode === "undirected") return { ...graph, directed: false };
-  return graph;
-}
-
 export function runAlgorithm(id, input) {
-  const runner = ALGORITHM_RUNNERS[id];
-  if (!runner) return [];
-  return runner.run(
-    input.graph ? { ...input, graph: effectiveGraph(id, input.graph) } : input,
-  );
+  return ALGORITHM_RUNNERS[id]?.run(input) ?? [];
 }

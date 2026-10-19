@@ -65,12 +65,12 @@ export function AlgorithmPicker({
               </SelectLabel>
               {group.algorithms.map((algorithm) => (
                 <SelectItem key={algorithm.id} value={algorithm.id}>
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2 text-left">
                     <span
-                      className={`h-2 w-2 rounded-full ${DIFFICULTY_DOT[algorithm.difficulty]}`}
+                      className={`h-2 w-2 shrink-0 rounded-full ${DIFFICULTY_DOT[algorithm.difficulty]}`}
                       title={DIFFICULTIES[algorithm.difficulty]}
                     />
-                    {algorithm.name}
+                    <span className="truncate">{algorithm.name}</span>
                   </span>
                 </SelectItem>
               ))}

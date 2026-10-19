@@ -7,9 +7,7 @@
 //   frontier:   queue (BFS) or call stack (DFS) contents
 //   order:      visiting order so far
 //   activeEdge: [from, to] edge being examined, or null
-//   treeEdges:  edges used to discover new vertices (or chosen for a tree/path)
-//   skippedEdges: edges rejected by the algorithm (e.g. Kruskal cycles)
-//   labels:     optional text per vertex (e.g. Dijkstra distances)
+//   treeEdges:  edges used to discover new vertices
 //   line, explanation, operations: as for array algorithms
 // }
 // `comparisons: [current]` keeps the shape the math panels expect.
@@ -26,14 +24,13 @@ export function buildAdjacencyList(vertices, edges, directed = false) {
   return graph;
 }
 
-export function createGraphRecorder(vertices) {
+function createGraphRecorder(vertices) {
   const steps = [];
   const ops = { comparisons: 0, swaps: 0, reads: 0, writes: 0 };
   const visited = new Set();
   const processed = new Set();
   const order = [];
   const treeEdges = [];
-  const skippedEdges = [];
   const state = Array.from({ length: vertices }, (_, i) => i);
 
   const record = ({
@@ -42,7 +39,6 @@ export function createGraphRecorder(vertices) {
     activeEdge = null,
     line,
     explanation,
-    labels = null,
   }) => {
     steps.push({
       state,
@@ -55,8 +51,6 @@ export function createGraphRecorder(vertices) {
       order: [...order],
       activeEdge,
       treeEdges: [...treeEdges],
-      skippedEdges: [...skippedEdges],
-      labels: labels && { ...labels },
       line,
       explanation,
       operations: { ...ops },
@@ -70,7 +64,6 @@ export function createGraphRecorder(vertices) {
     processed,
     order,
     treeEdges,
-    skippedEdges,
     record,
   };
 }

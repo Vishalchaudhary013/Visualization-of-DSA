@@ -1,29 +1,24 @@
 import { useRef } from "react";
-import { COLS, HEAVY_COST, ROWS, normalizeGrid } from "../../utils/grid";
+import { COLS, ROWS, normalizeGrid } from "../../utils/grid";
 
 const LEGEND = [
   { label: "Start", className: "bg-emerald-600" },
   { label: "Goal", className: "bg-rose-500" },
   { label: "Wall", className: "bg-slate-700 dark:bg-slate-500" },
-  {
-    label: `Heavy (cost ${HEAVY_COST})`,
-    className: "bg-amber-200 dark:bg-amber-900",
-  },
   { label: "Frontier", className: "bg-violet-400" },
   { label: "Explored", className: "bg-sky-300 dark:bg-sky-800" },
   { label: "Path", className: "bg-amber-400" },
 ];
 
 /**
- * The pathfinding grid. Drag to draw with the selected tool (walls, heavy
- * cells, eraser); drag the start or goal to move them. Works with mouse and touch.
+ * The pathfinding grid. Drag to draw with the selected tool (walls or
+ * eraser); drag the start or goal to move them. Works with mouse and touch.
  */
 export function GridVisualizer({ step, grid, onGridChange, tool }) {
   const drag = useRef(null);
   if (!step) return null;
 
   const walls = new Set(grid.walls);
-  const heavy = new Set(grid.weights);
   const open = new Set(step.open);
   const closed = new Set(step.closed);
   const path = new Set(step.path);
@@ -36,12 +31,7 @@ export function GridVisualizer({ step, grid, onGridChange, tool }) {
     if (cell === step.current)
       return "bg-amber-300 ring-2 ring-amber-500 ring-inset";
     if (open.has(cell)) return "bg-violet-400 text-white";
-    if (closed.has(cell))
-      return heavy.has(cell)
-        ? "bg-sky-400 dark:bg-sky-700"
-        : "bg-sky-300 dark:bg-sky-800";
-    if (heavy.has(cell))
-      return "bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200";
+    if (closed.has(cell)) return "bg-sky-300 dark:bg-sky-800";
     return "bg-card";
   };
 
@@ -63,12 +53,12 @@ export function GridVisualizer({ step, grid, onGridChange, tool }) {
       return;
     }
     if (cell === grid.start || cell === grid.end) return;
-    let nextWalls = grid.walls.filter((c) => c !== cell);
-    let nextWeights = grid.weights.filter((c) => c !== cell);
-    if (action.type === "add-wall") nextWalls = [...nextWalls, cell];
-    if (action.type === "add-weight") nextWeights = [...nextWeights, cell];
+    const others = grid.walls.filter((c) => c !== cell);
     onGridChange(
-      normalizeGrid({ ...grid, walls: nextWalls, weights: nextWeights }),
+      normalizeGrid({
+        ...grid,
+        walls: action.type === "add-wall" ? [...others, cell] : others,
+      }),
     );
   };
 
@@ -80,7 +70,6 @@ export function GridVisualizer({ step, grid, onGridChange, tool }) {
     if (cell === grid.start) type = "start";
     else if (cell === grid.end) type = "end";
     else if (tool === "wall") type = walls.has(cell) ? "erase" : "add-wall";
-    else if (tool === "weight") type = heavy.has(cell) ? "erase" : "add-weight";
     else type = "erase";
     drag.current = { type, last: null };
     apply(cell);
@@ -118,13 +107,7 @@ export function GridVisualizer({ step, grid, onGridChange, tool }) {
                 : "cursor-crosshair"
             }`}
           >
-            {cell === grid.start
-              ? "S"
-              : cell === grid.end
-                ? "G"
-                : heavy.has(cell) && !walls.has(cell)
-                  ? HEAVY_COST
-                  : ""}
+            {cell === grid.start ? "S" : cell === grid.end ? "G" : ""}
           </div>
         ))}
       </div>

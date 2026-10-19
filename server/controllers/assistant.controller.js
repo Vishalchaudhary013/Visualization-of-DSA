@@ -23,13 +23,14 @@ const CATEGORY_KEYWORDS = {
   sorting: ["sort", "sorts", "sorting"],
   searching: ["search", "searches", "searching"],
   "graph-traversal": ["graph", "graphs", "traversal", "traverse", "traversing"],
-  "graph-algorithms": [
-    "shortest",
-    "spanning",
-    "mst",
-    "weighted",
-    "dag",
-    "dependencies",
+  pathfinding: ["pathfinding", "grid", "maze"],
+  "dynamic-programming": [
+    "dp",
+    "dynamic",
+    "memoization",
+    "memoize",
+    "tabulation",
+    "subproblems",
   ],
 };
 
@@ -156,7 +157,7 @@ function buildFallbackMessage() {
       ([category, items]) => `- ${category}: ${items.slice(0, 4).join(", ")}`,
     )
     .join("\n");
-  return `I can answer questions about sorting, searching and graph algorithms, and about stacks, queues, heaps, linked lists, binary search trees, hash tables, tries and union-find. Try referencing an algorithm name (e.g., "Explain quick sort").\n\nAvailable families:\n${categoryLines}`;
+  return `I can answer questions about sorting, searching, graph, pathfinding and dynamic programming algorithms, and about stacks, queues, heaps, linked lists, binary search trees, hash tables, tries and union-find. Try referencing an algorithm name (e.g., "Explain quick sort").\n\nAvailable families:\n${categoryLines}`;
 }
 
 // POST /api/assistant  { question, algorithmId? } -> { reply, matchedIds }

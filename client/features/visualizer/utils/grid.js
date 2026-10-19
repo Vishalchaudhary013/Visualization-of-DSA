@@ -1,11 +1,9 @@
 // Grid model for the pathfinding algorithms. Cells are numbered row by row
-// (index = row * COLS + col). A grid is { start, end, walls, weights } where
-// walls/weights are sorted arrays of cell indices; weighted ("heavy") cells
-// cost HEAVY_COST to enter instead of 1.
+// (index = row * COLS + col). A grid is { start, end, walls } where walls is
+// a sorted array of cell indices.
 
 export const ROWS = 15;
 export const COLS = 25;
-export const HEAVY_COST = 5;
 
 export const cellIndex = (row, col) => row * COLS + col;
 export const cellRow = (index) => Math.floor(index / COLS);
@@ -28,7 +26,7 @@ export function neighbours(index) {
   return result;
 }
 
-/** Manhattan distance: never more than the real cost, so A* stays optimal. */
+/** Manhattan distance: the number of moves to the goal if there were no walls. */
 export const manhattan = (a, b) =>
   Math.abs(cellRow(a) - cellRow(b)) + Math.abs(cellCol(a) - cellCol(b));
 
@@ -42,24 +40,15 @@ export function defaultGrid() {
     start: cellIndex(7, 4),
     end: cellIndex(7, 20),
     walls: sorted(walls),
-    weights: sorted([
-      cellIndex(6, 16),
-      cellIndex(7, 16),
-      cellIndex(8, 16),
-      cellIndex(7, 17),
-    ]),
   };
 }
 
-/** Removes walls/weights from the start and goal so they always stay open. */
-export function normalizeGrid({ start, end, walls, weights }) {
-  const keep = (cell) => cell !== start && cell !== end;
-  const wallSet = new Set(walls);
+/** Removes walls from the start and goal so they always stay open. */
+export function normalizeGrid({ start, end, walls }) {
   return {
     start,
     end,
-    walls: sorted(walls.filter(keep)),
-    weights: sorted(weights.filter((cell) => keep(cell) && !wallSet.has(cell))),
+    walls: sorted(walls.filter((cell) => cell !== start && cell !== end)),
   };
 }
 
@@ -103,20 +92,16 @@ export function generateMaze() {
     start: cellIndex(1, 1),
     end: cellIndex(ROWS - 2, COLS - 2),
     walls,
-    weights: [],
   });
 }
 
-/** About 28% random walls and a few heavy cells, keeping start and goal. */
+/** About 28% random walls, keeping start and goal. */
 export function randomGrid({ start, end }) {
   const walls = [];
-  const weights = [];
   for (let cell = 0; cell < ROWS * COLS; cell++) {
-    const roll = Math.random();
-    if (roll < 0.28) walls.push(cell);
-    else if (roll < 0.36) weights.push(cell);
+    if (Math.random() < 0.28) walls.push(cell);
   }
-  return normalizeGrid({ start, end, walls, weights });
+  return normalizeGrid({ start, end, walls });
 }
 
 // URL format: cell lists as base-36 numbers joined by "." (short and URL-safe)

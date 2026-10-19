@@ -1,6 +1,5 @@
 import {
   LuBrickWall as Wall,
-  LuWeight as Weight,
   LuEraser as Eraser,
   LuGrid3X3 as Maze,
   LuShuffle as Shuffle,
@@ -8,16 +7,10 @@ import {
 } from "react-icons/lu";
 import { Button } from "@/features/common/components/ui/button";
 import { Label } from "@/features/common/components/ui/label";
-import {
-  HEAVY_COST,
-  generateMaze,
-  normalizeGrid,
-  randomGrid,
-} from "../../utils/grid";
+import { generateMaze, normalizeGrid, randomGrid } from "../../utils/grid";
 
 const TOOLS = [
   { key: "wall", label: "Wall", icon: Wall },
-  { key: "weight", label: "Heavy", icon: Weight },
   { key: "erase", label: "Erase", icon: Eraser },
 ];
 
@@ -27,7 +20,7 @@ export function GridInputs({ grid, onGridChange, tool, onToolChange }) {
       <div className="space-y-2">
         <Label className="text-sm">Draw on the grid</Label>
         <div
-          className="grid grid-cols-3 gap-1 rounded-lg bg-muted/50 p-1"
+          className="grid grid-cols-2 gap-1 rounded-lg bg-muted/50 p-1"
           role="group"
           aria-label="Drawing tool"
         >
@@ -49,8 +42,8 @@ export function GridInputs({ grid, onGridChange, tool, onToolChange }) {
           ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          Drag across cells to draw. Heavy cells cost {HEAVY_COST} to enter.
-          Drag the <span className="font-semibold text-emerald-600">S</span> or{" "}
+          Drag across cells to draw walls. Drag the{" "}
+          <span className="font-semibold text-emerald-600">S</span> or{" "}
           <span className="font-semibold text-rose-500">G</span> cell to move
           the start or goal.
         </p>
@@ -75,11 +68,9 @@ export function GridInputs({ grid, onGridChange, tool, onToolChange }) {
           variant="outline"
           size="sm"
           className="col-span-2"
-          onClick={() =>
-            onGridChange(normalizeGrid({ ...grid, walls: [], weights: [] }))
-          }
+          onClick={() => onGridChange(normalizeGrid({ ...grid, walls: [] }))}
         >
-          <Trash /> Clear walls and heavy cells
+          <Trash /> Clear walls
         </Button>
       </div>
     </div>

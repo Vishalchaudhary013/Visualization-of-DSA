@@ -9,6 +9,7 @@ export const ARRAY_LIMITS = {
   maxValue: 99,
 };
 export const GRAPH_LIMITS = { minVertices: 2, maxVertices: 10 };
+export const FIBONACCI_LIMITS = { minN: 2, maxN: 20 };
 
 const randomInt = (min, max) =>
   Math.floor(Math.random() * (max - min + 1)) + min;
@@ -76,8 +77,8 @@ export function parseArray(text) {
 }
 
 /**
- * One edge per line: "0-1", "0,1" or with a weight "0-1:4". Several edges on
- * one line work too ("0-1:4, 1-2"). -> { edges: [[from, to, weight]] } or { error }
+ * One edge per line: "0-1" or "0,1". Several edges on one line work too
+ * ("0-1, 1-2"). -> { edges: [[from, to]] } or { error }
  */
 export function parseEdges(text, vertices) {
   const parts = text
@@ -87,33 +88,23 @@ export function parseEdges(text, vertices) {
     .filter(Boolean);
   const edges = [];
   for (const part of parts) {
-    const match = part.match(
-      /^(\d+)\s*(?:,|->|-|\s)\s*(\d+)(?:\s*(?::|,|\s)\s*(-?\d+))?$/,
-    );
-    if (!match) return { error: `"${part}" is not an edge like 0-1 or 0-1:4` };
+    const match = part.match(/^(\d+)\s*(?:,|->|-|\s)\s*(\d+)$/);
+    if (!match) return { error: `"${part}" is not an edge like 0-1` };
     const [from, to] = [Number(match[1]), Number(match[2])];
-    const weight = match[3] === undefined ? 1 : Number(match[3]);
     if (from >= vertices || to >= vertices) {
       return {
         error: `Edge ${from}-${to} uses a vertex above ${vertices - 1}`,
       };
     }
     if (from === to) return { error: `Edge ${from}-${to} is a self-loop` };
-    if (weight === 0 || weight < -99 || weight > 99) {
-      return {
-        error: `Weight ${weight} on ${from}-${to} must be -99 to 99 (not 0)`,
-      };
-    }
-    edges.push([from, to, weight]);
+    edges.push([from, to]);
   }
   return { edges: dedupeEdges(edges) };
 }
 
-const formatEdge = ([a, b, w = 1], weighted) =>
-  weighted ? `${a}-${b}:${w}` : `${a}-${b}`;
+const formatEdge = ([a, b]) => `${a}-${b}`;
 
-export const formatEdges = (edges, { weighted = false } = {}) =>
-  edges.map((edge) => formatEdge(edge, weighted)).join("\n");
+export const formatEdges = (edges) => edges.map(formatEdge).join("\n");
 
 function dedupeEdges(edges) {
   const seen = new Set();
@@ -126,11 +117,10 @@ function dedupeEdges(edges) {
 }
 
 /**
- * Connected random graph with weights 1-9 (some -1..-5 with `negative`): a random spanning tree plus a few
- * extra edges. Read as directed (from -> to), it never has a cycle, so it also
- * works for topological sort. Vertex labels are shuffled so the order isn't 0..n.
+ * Connected random graph: a random spanning tree plus a few extra edges.
+ * Vertex labels are shuffled so the order isn't 0..n.
  */
-export function generateGraphEdges(vertices, { negative = false } = {}) {
+export function generateGraphEdges(vertices) {
   const edges = [];
   const has = (a, b) =>
     edges.some(([x, y]) => (x === a && y === b) || (x === b && y === a));
@@ -147,12 +137,7 @@ export function generateGraphEdges(vertices, { negative = false } = {}) {
     [label[i], label[j]] = [label[j], label[i]];
   }
   return edges
-    .map(([a, b]) => [
-      label[a],
-      label[b],
-      // Negative weights stay cycle-free because the graph is acyclic when directed
-      negative && Math.random() < 0.3 ? -randomInt(1, 5) : randomInt(1, 9),
-    ])
+    .map(([a, b]) => [label[a], label[b]])
     .sort((x, y) => x[0] - y[0] || x[1] - y[1]);
 }
 
@@ -171,7 +156,7 @@ export function readParams(params, defaults) {
   const target = Number(params.get("target"));
   if (params.has("target") && Number.isInteger(target)) result.target = target;
   const vertices = Number(params.get("v"));
-  if (Number.isInteger(vertices)) {
+  if (params.has("v") && Number.isInteger(vertices)) {
     result.vertices = clamp(
       vertices,
       GRAPH_LIMITS.minVertices,
@@ -190,7 +175,12 @@ export function readParams(params, defaults) {
     result.edges = generateGraphEdges(result.vertices);
   }
   const start = Number(params.get("start"));
-  if (Number.isInteger(start) && start >= 0 && start < result.vertices) {
+  if (
+    params.has("start") &&
+    Number.isInteger(start) &&
+    start >= 0 &&
+    start < result.vertices
+  ) {
     result.start = start;
   }
   if (params.has("directed")) result.directed = params.get("directed") === "1";
@@ -198,10 +188,13 @@ export function readParams(params, defaults) {
     const start = decodeCell(params.get("s"));
     const end = decodeCell(params.get("e"));
     const walls = decodeCells(params.get("w"));
-    const weights = decodeCells(params.get("h"));
-    if (start !== null && end !== null && start !== end && walls && weights) {
-      result.grid = normalizeGrid({ start, end, walls, weights });
+    if (start !== null && end !== null && start !== end && walls) {
+      result.grid = normalizeGrid({ start, end, walls });
     }
+  }
+  const n = Number(params.get("n"));
+  if (params.has("n") && Number.isInteger(n)) {
+    result.n = clamp(n, FIBONACCI_LIMITS.minN, FIBONACCI_LIMITS.maxN);
   }
   return result;
 }
@@ -216,16 +209,18 @@ export function buildParams({
   start,
   directed,
   grid,
+  n,
 }) {
   const params = new URLSearchParams({ algo: algorithm });
-  if (kind === "grid") {
+  if (kind === "dp") {
+    params.set("n", String(n));
+  } else if (kind === "grid") {
     params.set("s", grid.start.toString(36));
     params.set("e", grid.end.toString(36));
     if (grid.walls.length) params.set("w", encodeCells(grid.walls));
-    if (grid.weights.length) params.set("h", encodeCells(grid.weights));
   } else if (kind === "graph") {
     params.set("v", String(vertices));
-    params.set("edges", edges.map((edge) => formatEdge(edge, true)).join("_"));
+    params.set("edges", edges.map(formatEdge).join("_"));
     params.set("start", String(start));
     if (directed) params.set("directed", "1");
   } else {

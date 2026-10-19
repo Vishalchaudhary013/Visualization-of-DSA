@@ -24,58 +24,53 @@ describe("parseArray", () => {
 });
 
 describe("parseEdges", () => {
-  it("accepts 0-1, 0,1, weights and several edges on one line", () => {
-    expect(parseEdges("0-1\n1,2\n2-3:7, 3-0:12\n0 2 5", 4)).toEqual({
+  it("accepts 0-1, 0,1, 0 1 and several edges on one line", () => {
+    expect(parseEdges("0-1\n1,2\n2-3, 3-0\n0 2", 4)).toEqual({
       edges: [
-        [0, 1, 1],
-        [1, 2, 1],
-        [2, 3, 7],
-        [3, 0, 12],
-        [0, 2, 5],
+        [0, 1],
+        [1, 2],
+        [2, 3],
+        [3, 0],
+        [0, 2],
       ],
     });
   });
 
-  it("accepts negative weights", () => {
-    expect(parseEdges("0-1:-4\n1 2 -7", 3).edges).toEqual([
-      [0, 1, -4],
-      [1, 2, -7],
-    ]);
-  });
-
   it("removes duplicates", () => {
-    expect(parseEdges("0-1\n0-1:4", 2).edges).toEqual([[0, 1, 1]]);
+    expect(parseEdges("0-1\n0-1", 2).edges).toEqual([[0, 1]]);
   });
 
   it.each([
     ["0-5", 3, /vertex above 2/],
     ["1-1", 3, /self-loop/],
     ["a-b", 3, /not an edge/],
-    ["0-1:0", 3, /-99 to 99/],
-    ["0-1:100", 3, /-99 to 99/],
-    ["0-1:-100", 3, /-99 to 99/],
+    ["0-1:4", 3, /not an edge/],
   ])("rejects %s", (text, vertices, message) => {
     expect(parseEdges(text, vertices).error).toMatch(message);
   });
 });
 
 describe("generateGraphEdges", () => {
-  it("makes a connected graph with weights 1-9 that is acyclic when directed", () => {
+  it("makes a connected graph without self-loops or duplicates", () => {
     for (let vertices = 2; vertices <= 10; vertices++) {
       const edges = generateGraphEdges(vertices);
-      expect(edges.every(([, , w]) => w >= 1 && w <= 9)).toBe(true);
-      // Kahn's algorithm consumes every vertex only if there is no cycle
-      const indegree = Array(vertices).fill(0);
-      for (const [, b] of edges) indegree[b]++;
-      const queue = indegree.flatMap((d, v) => (d ? [] : [v]));
-      let seen = 0;
-      while (queue.length) {
-        const u = queue.shift();
-        seen++;
-        for (const [a, b] of edges)
-          if (a === u && --indegree[b] === 0) queue.push(b);
+      expect(
+        edges.every(([a, b]) => a !== b && a < vertices && b < vertices),
+      ).toBe(true);
+      const keys = edges.map(([a, b]) => [a, b].sort().join("-"));
+      expect(new Set(keys).size).toBe(edges.length);
+      // Every vertex is reachable from 0 when edges go both ways
+      const reached = new Set([0]);
+      for (let changed = true; changed;) {
+        changed = false;
+        for (const [a, b] of edges) {
+          if (reached.has(a) !== reached.has(b)) {
+            reached.add(a).add(b);
+            changed = true;
+          }
+        }
       }
-      expect(seen).toBe(vertices);
+      expect(reached.size).toBe(vertices);
     }
   });
 });
@@ -110,8 +105,8 @@ describe("URL params", () => {
     const graph = {
       vertices: 4,
       edges: [
-        [0, 1, 4],
-        [1, 3, 1],
+        [0, 1],
+        [1, 3],
       ],
       start: 3,
       directed: true,
@@ -128,6 +123,32 @@ describe("URL params", () => {
     });
   });
 
+  it("round-trips and clamps Fibonacci's n", () => {
+    const params = buildParams({
+      ...defaults,
+      algorithm: "fibonacci",
+      kind: "dp",
+      n: 15,
+    });
+    expect(params.toString()).toBe("algo=fibonacci&n=15");
+    expect(readParams(params, { ...defaults, n: 10 }).n).toBe(15);
+    expect(
+      readParams(new URLSearchParams("n=99"), { ...defaults, n: 10 }).n,
+    ).toBe(20);
+    expect(
+      readParams(new URLSearchParams("n=x"), { ...defaults, n: 10 }).n,
+    ).toBe(10);
+  });
+
+  it("keeps the default graph when the URL has no vertex count", () => {
+    const result = readParams(new URLSearchParams("algo=bfs"), {
+      ...defaults,
+      start: 2,
+    });
+    expect(result.vertices).toBe(defaults.vertices);
+    expect(result.start).toBe(2);
+  });
+
   it("ignores invalid values", () => {
     const params = new URLSearchParams("arr=1,x&v=99&start=50&edges=0-12");
     const result = readParams(params, defaults);
@@ -140,7 +161,7 @@ describe("URL params", () => {
   it("regenerates default edges that do not fit the vertex count", () => {
     const result = readParams(new URLSearchParams("v=2"), {
       ...defaults,
-      edges: [[3, 4, 1]],
+      edges: [[3, 4]],
     });
     expect(result.edges).toHaveLength(1);
     expect(result.edges[0].slice(0, 2).sort()).toEqual([0, 1]);
