@@ -1,4 +1,7 @@
 import { ALGORITHMS } from "../../shared/algorithms.js";
+import { DATA_STRUCTURES } from "../../shared/dataStructures.js";
+import { PATTERN_LIST } from "../../shared/patterns.js";
+import { PROBLEMS } from "../../shared/problems.js";
 import { hasWord, toWords } from "../utils/fuzzyMatch.js";
 
 const ALGORITHM_LIST = Object.values(ALGORITHMS);
@@ -22,6 +25,15 @@ const CATEGORY_KEYWORDS = {
   sorting: ["sort", "sorts", "sorting"],
   searching: ["search", "searches", "searching"],
   "graph-traversal": ["graph", "graphs", "traversal", "traverse", "traversing"],
+  pathfinding: ["pathfinding", "grid", "maze"],
+  "dynamic-programming": [
+    "dp",
+    "dynamic",
+    "memoization",
+    "memoize",
+    "tabulation",
+    "subproblems",
+  ],
 };
 
 function findMatchingAlgorithms(question) {
@@ -47,6 +59,94 @@ function findMatchingAlgorithms(question) {
   });
 }
 
+// Words that point to a data structure. Tree/linked-list phrases are checked
+// before algorithms so "binary search tree" isn't read as binary search.
+const STRUCTURE_KEYWORDS = [
+  { id: "bst", words: ["bst"], all: ["tree", "search"], strong: true },
+  { id: "linked-list", words: ["linked", "linkedlist"], strong: true },
+  { id: "stack", words: ["stack", "stacks", "lifo"] },
+  { id: "queue", words: ["queue", "queues", "fifo", "enqueue", "dequeue"] },
+  { id: "heap", words: ["heap", "heaps", "priority"] },
+  {
+    id: "hash-table",
+    words: ["hash", "hashing", "hashmap", "hashtable", "dictionary"],
+  },
+  { id: "trie", words: ["trie", "tries", "prefix", "autocomplete"] },
+  {
+    id: "union-find",
+    words: ["union", "disjoint", "unionfind"],
+    all: ["union", "find"],
+  },
+];
+
+function findMatchingStructures(question, { strongOnly = false } = {}) {
+  const words = toWords(question);
+  return STRUCTURE_KEYWORDS.filter(
+    (entry) =>
+      (!strongOnly || entry.strong) &&
+      (hasWord(words, entry.words) ||
+        (entry.all && entry.all.every((word) => hasWord(words, [word])))),
+  ).map((entry) => DATA_STRUCTURES[entry.id]);
+}
+
+const structureReply = (structures) => ({
+  reply: structures.slice(0, 2).map(buildStructureSummary).join("\n\n"),
+  matchedIds: structures.map((structure) => structure.id),
+});
+
+function buildStructureSummary(structure) {
+  const operations = Object.values(structure.operations)
+    .map((operation) => `${operation.label} ${operation.complexity}`)
+    .join(", ");
+  return [
+    `**${structure.name}**`,
+    structure.description,
+    `Operations → ${operations}`,
+    "How it works:",
+    ...structure.howItWorks.map((item, index) => `${index + 1}. ${item}`),
+    `Use it for: ${structure.useCases.join("; ")}.`,
+    `Try it yourself on the Data Structures page (${structure.name}).`,
+  ].join("\n");
+}
+
+// "Union Find (DSU)" -> ["union find", "DSU"]; "HashMap / HashSet" -> both
+const IGNORED_PATTERN_WORDS = new Set(["s", "and", "algorithm"]);
+const PATTERN_VARIANTS = PATTERN_LIST.map((pattern) => ({
+  pattern,
+  variants: pattern.name
+    .replace(/[()]/g, " / ")
+    .split("/")
+    .map((part) => toWords(part).filter((w) => !IGNORED_PATTERN_WORDS.has(w)))
+    .filter((words) => words.length),
+}));
+
+// Single words like "stack" or "heap" are answered as data structures
+function findMatchingPatterns(question) {
+  const words = toWords(question);
+  const structureWords = new Set(STRUCTURE_KEYWORDS.flatMap((s) => s.words));
+  return PATTERN_VARIANTS.filter(({ variants }) =>
+    variants.some((variant) =>
+      variant.length === 1
+        ? words.includes(variant[0]) && !structureWords.has(variant[0])
+        : variant.every((word) => hasWord(words, [word])),
+    ),
+  ).map(({ pattern }) => pattern);
+}
+
+function buildPatternSummary(pattern) {
+  const problems = pattern.problems.map((id) => PROBLEMS[id].title);
+  return [
+    `**${pattern.name}** (pattern)`,
+    pattern.summary,
+    "Use it when:",
+    ...pattern.signals.map((signal) => `- ${signal}`),
+    `Typical cost: ${pattern.complexity}.`,
+    problems.length
+      ? `Try it step by step on the ${pattern.name} pattern page: ${problems.join(", ")}.`
+      : `Practice: ${pattern.practice.slice(0, 3).join("; ")}.`,
+  ].join("\n");
+}
+
 function findMatchingCategory(question) {
   const words = toWords(question);
   return Object.keys(CATEGORY_KEYWORDS).find((category) =>
@@ -66,6 +166,14 @@ function buildAlgorithmSummary(algoId) {
   ];
   if (explanation) {
     lines.push(`Detail: ${explanation}`);
+  } else if (algo.howItWorks) {
+    lines.push(
+      "How it works:",
+      ...algo.howItWorks.map((item, index) => `${index + 1}. ${item}`),
+    );
+  }
+  if (algo.useCases) {
+    lines.push(`Use it for: ${algo.useCases.join("; ")}.`);
   }
   return lines.join("\n");
 }
@@ -89,15 +197,23 @@ function buildFallbackMessage() {
       ([category, items]) => `- ${category}: ${items.slice(0, 4).join(", ")}`,
     )
     .join("\n");
-  return `I can answer questions about sorting, searching, and graph algorithms. Try referencing an algorithm name (e.g., "Explain quick sort").\n\nAvailable families:\n${categoryLines}`;
+  return `I can answer questions about sorting, searching, graph, pathfinding and dynamic programming algorithms, and about stacks, queues, heaps, linked lists, binary search trees, hash tables, tries and union-find. Try referencing an algorithm name (e.g., "Explain quick sort").\n\nAvailable families:\n${categoryLines}`;
 }
 
-// POST /api/assistant  { question } -> { reply, matchedIds }
+// POST /api/assistant  { question, algorithmId? } -> { reply, matchedIds }
+// algorithmId is the algorithm or data structure open on screen; it answers
+// questions that don't name one ("how does this work?").
 export const askAssistant = (req, res) => {
-  const { question } = req.body;
+  const { question, algorithmId } = req.body ?? {};
   if (!question || typeof question !== "string" || !question.trim()) {
     return res.status(400).json({ error: "Please provide a question." });
   }
+
+  const strongStructures = findMatchingStructures(question, {
+    strongOnly: true,
+  });
+  if (strongStructures.length)
+    return res.json(structureReply(strongStructures));
 
   const matches = findMatchingAlgorithms(question);
   if (matches.length) {
@@ -109,6 +225,17 @@ export const askAssistant = (req, res) => {
     return res.json({ reply, matchedIds: matches.map((algo) => algo.id) });
   }
 
+  const patterns = findMatchingPatterns(question);
+  if (patterns.length) {
+    return res.json({
+      reply: patterns.slice(0, 2).map(buildPatternSummary).join("\n\n"),
+      matchedIds: patterns.map((pattern) => pattern.id),
+    });
+  }
+
+  const structures = findMatchingStructures(question);
+  if (structures.length) return res.json(structureReply(structures));
+
   // No specific algorithm named, but a family was ("explain a searching algorithm")
   const category = findMatchingCategory(question);
   if (category) {
@@ -117,6 +244,21 @@ export const askAssistant = (req, res) => {
       reply: buildCategoryMessage(category, algos),
       matchedIds: algos.map((algo) => algo.id),
     });
+  }
+
+  if (typeof algorithmId === "string") {
+    if (Object.hasOwn(ALGORITHMS, algorithmId)) {
+      return res.json({
+        reply: buildAlgorithmSummary(algorithmId),
+        matchedIds: [algorithmId],
+      });
+    }
+    if (Object.hasOwn(DATA_STRUCTURES, algorithmId)) {
+      return res.json({
+        reply: buildStructureSummary(DATA_STRUCTURES[algorithmId]),
+        matchedIds: [algorithmId],
+      });
+    }
   }
 
   return res.json({ reply: buildFallbackMessage(), matchedIds: [] });

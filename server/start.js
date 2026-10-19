@@ -2,12 +2,14 @@ import fs from "fs/promises";
 import path from "path";
 import express from "express";
 import { createServer } from "./app.js";
+import { connectDb } from "./config/db.js";
 
 const isDev = process.argv.includes("--dev");
 const port = process.env.PORT || 8080;
 const root = path.resolve(import.meta.dirname, "..");
 const clientRoot = path.join(root, "client");
 
+await connectDb();
 const app = createServer();
 
 // app.listen returns the underlying server, which Vite reuses for hot reload

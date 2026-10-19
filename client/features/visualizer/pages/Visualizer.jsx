@@ -1,528 +1,384 @@
-import { useMemo, useState } from "react";
-import { LuShuffle as Shuffle } from "react-icons/lu";
+import { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
+import { toast } from "sonner";
+import { LuShare2 as Share } from "react-icons/lu";
 import { Button } from "@/features/common/components/ui/button";
-import { Input } from "@/features/common/components/ui/input";
-import { Label } from "@/features/common/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/features/common/components/ui/select";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from "@/features/common/components/ui/tabs";
-import { ArrayVisualizer } from "../components/visualizations/ArrayVisualizer";
-import { GraphVisualizer } from "../components/visualizations/GraphVisualizer";
-import { StepMathDetails } from "../components/visualizations/StepMathDetails";
-import { AlgorithmMathSummary } from "../components/visualizations/AlgorithmMathSummary";
-import { AlgorithmControls } from "../components/AlgorithmControls";
-import { AlgorithmInfoPanel } from "../components/AlgorithmInfoPanel";
-import { useAlgorithmVisualizer } from "../hooks/useAlgorithmVisualizer";
 import {
-  bubbleSort,
-  selectionSort,
-  insertionSort,
-  mergeSort,
-  quickSort,
-  heapSort,
-} from "../utils/algorithms/sorting";
-import { linearSearch, binarySearch } from "../utils/algorithms/searching";
-import { bfs, dfs } from "../utils/algorithms/graph";
-import { ALGORITHMS } from "@shared/algorithms";
+  ALGORITHMS,
+  ALGORITHM_CATEGORIES,
+  DIFFICULTIES,
+} from "@shared/algorithms";
+import {
+  ALGORITHM_KINDS,
+  ALGORITHM_RUNNERS,
+  runAlgorithm,
+} from "../algorithms";
+import { AlgorithmPicker } from "../components/inputs/AlgorithmPicker";
+import { ArrayInputs } from "../components/inputs/ArrayInputs";
+import { GraphInputs } from "../components/inputs/GraphInputs";
+import { GridInputs } from "../components/inputs/GridInputs";
+import { GridVisualizer } from "../components/canvas/GridVisualizer";
+import { DpInputs } from "../components/inputs/DpInputs";
+import { DpTableVisualizer } from "../components/canvas/DpTableVisualizer";
+import { PlaybackControls } from "@/features/common/components/playback/PlaybackControls";
+import { ArrayVisualizer } from "../components/canvas/ArrayVisualizer";
+import { GraphVisualizer } from "../components/canvas/GraphVisualizer";
+import { PseudocodePanel } from "@/features/common/components/playback/PseudocodePanel";
+import { OperationStats } from "../components/panels/OperationStats";
+import { StepLog } from "@/features/common/components/playback/StepLog";
+import { StepMathDetails } from "../components/panels/StepMathDetails";
+import { AlgorithmMathSummary } from "../components/panels/AlgorithmMathSummary";
+import { AlgorithmInfoPanel } from "../components/panels/AlgorithmInfoPanel";
+import {
+  usePlayback,
+  SPEED_PRESETS,
+} from "@/features/common/hooks/usePlayback";
+import { useKeyboardShortcuts } from "@/features/common/hooks/useKeyboardShortcuts";
+import { useVisualizerState } from "../hooks/useVisualizerState";
+import { useHistorySync } from "@/features/history/hooks/useHistorySync";
+import { SaveStatus } from "@/features/history/components/SaveStatus";
 
-const DEFAULT_ALGORITHM = "bubble-sort";
+const DIFFICULTY_BADGE = {
+  beginner: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  intermediate: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  advanced: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+};
+
+function Panel({ title, aside, children, className }) {
+  return (
+    <section
+      className={`min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5 ${className ?? ""}`}
+    >
+      {title && (
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {title}
+          </h2>
+          {aside}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
 
 export default function Visualizer() {
-  const [selectedAlgorithm, setSelectedAlgorithm] = useState(DEFAULT_ALGORITHM);
-  const [arraySize, setArraySize] = useState(20);
-  const [customArray, setCustomArray] = useState("");
-  const [searchTarget, setSearchTarget] = useState(5);
-  const [graphVertices, setGraphVertices] = useState(5);
-  const [graphEdges, setGraphEdges] = useState("");
-  const [graphDirected, setGraphDirected] = useState(false);
-  const [graphStart, setGraphStart] = useState(0);
+  const visualizer = useVisualizerState();
+  const {
+    algorithm: algorithmId,
+    kind,
+    array,
+    target,
+    graph,
+    grid,
+    n,
+  } = visualizer;
+  const algorithm = ALGORITHMS[algorithmId];
+  const runner = ALGORITHM_RUNNERS[algorithmId];
+  const isGraph = kind === ALGORITHM_KINDS.GRAPH;
+  const isSearch = kind === ALGORITHM_KINDS.SEARCH;
+  const isSort = kind === ALGORITHM_KINDS.SORT;
+  const isGrid = kind === ALGORITHM_KINDS.GRID;
+  const isDp = kind === ALGORITHM_KINDS.DP;
+  // The math panels are about arrays and graphs, not grids or DP tables
+  const hasMath = !isGrid && !isDp;
+  const [gridTool, setGridTool] = useState("wall");
 
-  const arrayData = useMemo(() => {
-    if (customArray.trim()) {
-      try {
-        const values = customArray
-          .split(",")
-          .map((value) => parseInt(value.trim(), 10))
-          .filter((value) => !Number.isNaN(value));
-        return values.length > 0 ? values : generateRandomArray(arraySize);
-      } catch {
-        return generateRandomArray(arraySize);
-      }
-    }
-    return generateRandomArray(arraySize);
-  }, [customArray, arraySize]);
-
-  const parsedEdges = useMemo(() => {
-    if (!graphEdges.trim()) {
-      return generateGraphEdges(graphVertices);
-    }
-
-    try {
-      const edges = graphEdges.split("\n").reduce((acc, line) => {
-        const [from, to] = line
-          .split(",")
-          .map((value) => parseInt(value.trim(), 10));
-        if (!Number.isNaN(from) && !Number.isNaN(to)) {
-          acc.push([from, to]);
-        }
-        return acc;
-      }, /** @type {Array<[number, number]>} */ ([]));
-
-      return edges.length > 0 ? edges : generateGraphEdges(graphVertices);
-    } catch {
-      return generateGraphEdges(graphVertices);
-    }
-  }, [graphEdges, graphVertices]);
-
-  const steps = useMemo(() => {
-    const algo = ALGORITHMS[selectedAlgorithm];
-    if (!algo) return [];
-
-    switch (selectedAlgorithm) {
-      case "bubble-sort":
-        return bubbleSort(arrayData);
-      case "selection-sort":
-        return selectionSort(arrayData);
-      case "insertion-sort":
-        return insertionSort(arrayData);
-      case "merge-sort":
-        return mergeSort(arrayData);
-      case "quick-sort":
-        return quickSort(arrayData);
-      case "heap-sort":
-        return heapSort(arrayData);
-      case "linear-search":
-        return linearSearch(arrayData, searchTarget);
-      case "binary-search":
-        return binarySearch(
-          [...arrayData].sort((a, b) => a - b),
-          searchTarget,
-        );
-      case "bfs":
-        return bfs(graphVertices, parsedEdges, graphStart, graphDirected);
-      case "dfs":
-        return dfs(graphVertices, parsedEdges, graphStart, graphDirected);
-      default:
-        return [];
-    }
-  }, [
-    selectedAlgorithm,
-    arrayData,
-    searchTarget,
-    graphVertices,
-    parsedEdges,
-    graphDirected,
-    graphStart,
-  ]);
-
-  const visualizer = useAlgorithmVisualizer(
-    steps,
-    ALGORITHMS[selectedAlgorithm],
+  const steps = useMemo(
+    () => runAlgorithm(algorithmId, { array, target, graph, grid, n }),
+    [algorithmId, array, target, graph, grid, n],
   );
-  const currentStep = visualizer.getCurrentStep();
-  const isSearchingAlgorithm = selectedAlgorithm.includes("search");
-  const isSortingAlgorithm = selectedAlgorithm.includes("sort");
-  const isGraphAlgorithm = ["bfs", "dfs"].includes(selectedAlgorithm);
+  const playback = usePlayback(steps);
+  // Grid searches explore hundreds of cells and DP tables fill one cell per
+  // step: start them at a faster speed
+  const { setSpeed } = playback;
+  useEffect(() => {
+    setSpeed(isGrid ? 4 : isDp ? 2 : 1);
+  }, [isGrid, isDp, setSpeed]);
+  const { step } = playback;
+
+  // Save the run (algorithm + the user's input) once they start playing it
+  const { search } = useLocation();
+  const lastStep = steps.at(-1);
+  const historyEntry = useMemo(
+    () =>
+      lastStep && {
+        kind: "algorithm",
+        itemId: algorithmId,
+        title: algorithm.name,
+        input: isDp
+          ? { n }
+          : isGrid
+            ? { grid }
+            : isGraph
+              ? { graph }
+              : isSearch
+                ? { array, target }
+                : { array },
+        summary: {
+          steps: steps.length,
+          comparisons: lastStep.operations.comparisons,
+          swaps: lastStep.operations.swaps,
+          result: lastStep.explanation.slice(0, 500),
+        },
+        link: `/visualizer${search}`,
+      },
+    [
+      lastStep,
+      steps.length,
+      algorithmId,
+      algorithm.name,
+      isGraph,
+      isGrid,
+      isDp,
+      isSearch,
+      graph,
+      grid,
+      n,
+      array,
+      target,
+      search,
+    ],
+  );
+  const saveStatus = useHistorySync({
+    key: search,
+    entry: historyEntry,
+    ready: playback.isPlaying || playback.currentStep > 0,
+  });
+
+  const shortcuts = useMemo(() => {
+    const shiftSpeed = (direction) => {
+      const index = SPEED_PRESETS.indexOf(playback.speed) + direction;
+      if (index >= 0 && index < SPEED_PRESETS.length)
+        playback.setSpeed(SPEED_PRESETS[index]);
+    };
+    return {
+      togglePlay: playback.togglePlay,
+      nextStep: playback.nextStep,
+      previousStep: playback.previousStep,
+      reset: playback.reset,
+      goToEnd: playback.goToEnd,
+      faster: () => shiftSpeed(1),
+      slower: () => shiftSpeed(-1),
+    };
+  }, [playback]);
+  useKeyboardShortcuts(shortcuts);
+
+  const shareLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Link copied", {
+        description:
+          "Anyone with the link sees this exact algorithm and input.",
+      });
+    } catch {
+      toast.error("Couldn't copy the link", {
+        description: window.location.href,
+      });
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-background py-6">
-      <div className="w-full px-0 space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-4xl font-bold">Algorithm Visualizer</h1>
-          <p className="text-muted-foreground">
-            Select an algorithm and customize inputs to visualize step-by-step
-            execution
+    <div className="container mx-auto space-y-6 px-4 py-6 sm:py-8">
+      <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+            <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-medium text-primary">
+              {ALGORITHM_CATEGORIES[algorithm.category]}
+            </span>
+            <span
+              className={`rounded-full px-2.5 py-0.5 font-medium ${DIFFICULTY_BADGE[algorithm.difficulty]}`}
+            >
+              {DIFFICULTIES[algorithm.difficulty]}
+            </span>
+            <span className="rounded-full border border-border px-2.5 py-0.5 font-mono text-muted-foreground">
+              avg {algorithm.complexity.time.average} · space{" "}
+              {algorithm.complexity.space}
+            </span>
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            {algorithm.name}
+          </h1>
+          <p className="max-w-2xl text-muted-foreground">
+            {algorithm.description}
           </p>
         </div>
+        <div className="flex flex-col items-start gap-2 md:items-end">
+          <Button variant="outline" onClick={shareLink}>
+            <Share />
+            Share this setup
+          </Button>
+          <SaveStatus status={saveStatus} />
+        </div>
+      </header>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1.5fr)_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1.8fr)_minmax(0,1.1fr)]">
-          <div className="space-y-6">
-            <div className="bg-card border border-border rounded-lg p-4 space-y-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="algorithm"
-                  className="text-base! font-semibold!"
-                >
-                  Algorithm
-                </Label>
-                <Select
-                  value={selectedAlgorithm}
-                  onValueChange={setSelectedAlgorithm}
-                >
-                  <SelectTrigger id="algorithm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="bubble-sort">Bubble Sort</SelectItem>
-                    <SelectItem value="selection-sort">
-                      Selection Sort
-                    </SelectItem>
-                    <SelectItem value="insertion-sort">
-                      Insertion Sort
-                    </SelectItem>
-                    <SelectItem value="merge-sort">Merge Sort</SelectItem>
-                    <SelectItem value="quick-sort">Quick Sort</SelectItem>
-                    <SelectItem value="heap-sort">Heap Sort</SelectItem>
-                    <SelectItem value="linear-search">Linear Search</SelectItem>
-                    <SelectItem value="binary-search">Binary Search</SelectItem>
-                    <SelectItem value="bfs">Breadth-First Search</SelectItem>
-                    <SelectItem value="dfs">Depth-First Search</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {isSortingAlgorithm && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="array-size" className="text-sm">
-                      Array Size: {arraySize}
-                    </Label>
-                    <input
-                      id="array-size"
-                      type="range"
-                      min="5"
-                      max="50"
-                      value={arraySize}
-                      onChange={(event) =>
-                        setArraySize(parseInt(event.target.value, 10))
-                      }
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="custom-array" className="text-sm">
-                      Custom Values (comma-separated)
-                    </Label>
-                    <Input
-                      id="custom-array"
-                      placeholder="e.g., 5,2,8,1,9"
-                      value={customArray}
-                      onChange={(event) => setCustomArray(event.target.value)}
-                      className="text-sm!"
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => {
-                      setCustomArray("");
-                      setArraySize(Math.floor(Math.random() * 31) + 5);
-                    }}
-                  >
-                    <Shuffle className="w-4 h-4 mr-2" />
-                    Randomize
-                  </Button>
-                </>
-              )}
-
-              {isSearchingAlgorithm && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="search-target" className="text-sm">
-                      Target Value
-                    </Label>
-                    <Input
-                      id="search-target"
-                      type="number"
-                      value={searchTarget}
-                      onChange={(event) =>
-                        setSearchTarget(parseInt(event.target.value, 10))
-                      }
-                      className="text-sm!"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="search-array-size" className="text-sm">
-                      Array Size: {arraySize}
-                    </Label>
-                    <input
-                      id="search-array-size"
-                      type="range"
-                      min="5"
-                      max="50"
-                      value={arraySize}
-                      onChange={(event) =>
-                        setArraySize(parseInt(event.target.value, 10))
-                      }
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="search-custom-array" className="text-sm">
-                      Custom Values (comma-separated)
-                    </Label>
-                    <Input
-                      id="search-custom-array"
-                      placeholder="e.g., 7,1,4,9,2"
-                      value={customArray}
-                      onChange={(event) => setCustomArray(event.target.value)}
-                      className="text-sm!"
-                    />
-                  </div>
-                </>
-              )}
-
-              {isGraphAlgorithm && (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="vertices" className="text-sm">
-                      Vertices: {graphVertices}
-                    </Label>
-                    <input
-                      id="vertices"
-                      type="range"
-                      min="3"
-                      max="8"
-                      value={graphVertices}
-                      onChange={(event) =>
-                        setGraphVertices(parseInt(event.target.value, 10))
-                      }
-                      className="w-full"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="start-vertex" className="text-sm">
-                      Start Vertex
-                    </Label>
-                    <Select
-                      value={String(graphStart)}
-                      onValueChange={(value) =>
-                        setGraphStart(parseInt(value, 10))
-                      }
-                    >
-                      <SelectTrigger id="start-vertex">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Array.from({ length: graphVertices }, (_, index) => (
-                          <SelectItem key={index} value={String(index)}>
-                            Vertex {index}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="graph-edges" className="text-sm">
-                      Edges (from,to per line)
-                    </Label>
-                    <textarea
-                      id="graph-edges"
-                      placeholder={"0,1\n1,2\n2,3"}
-                      value={graphEdges}
-                      onChange={(event) => setGraphEdges(event.target.value)}
-                      className="w-full h-24 p-2 border border-border rounded text-xs font-mono"
-                    />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={graphDirected}
-                      onChange={(event) =>
-                        setGraphDirected(event.target.checked)
-                      }
-                      className="w-4 h-4"
-                    />
-                    <span>Directed Graph</span>
-                  </label>
-                </>
-              )}
-            </div>
-
-            <AlgorithmControls
-              isPlaying={visualizer.isPlaying}
-              isPaused={visualizer.isPaused}
-              currentStep={visualizer.currentStep}
-              totalSteps={visualizer.steps.length}
-              speed={visualizer.speed}
-              onPlay={visualizer.play}
-              onPause={visualizer.pause}
-              onStop={visualizer.stop}
-              onNextStep={visualizer.nextStep}
-              onPreviousStep={visualizer.previousStep}
-              onReset={visualizer.reset}
-              onSpeedChange={visualizer.setSpeed}
-              onGoToStep={visualizer.goToStep}
-            />
-          </div>
-
-          <div className="space-y-6">
-            <div className="bg-card border border-border rounded-lg p-6">
-              {isGraphAlgorithm ? (
-                <GraphVisualizer
-                  step={currentStep}
-                  vertices={graphVertices}
-                  edges={parsedEdges}
-                  directed={graphDirected}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[300px_minmax(0,1fr)_380px]">
+        <aside className="space-y-6">
+          <Panel title="Input">
+            <div className="space-y-5">
+              <AlgorithmPicker
+                value={algorithmId}
+                onChange={visualizer.setAlgorithm}
+              />
+              {isDp ? (
+                <DpInputs n={n} onNChange={visualizer.setN} />
+              ) : isGrid ? (
+                <GridInputs
+                  grid={grid}
+                  onGridChange={visualizer.setGrid}
+                  tool={gridTool}
+                  onToolChange={setGridTool}
+                />
+              ) : isGraph ? (
+                <GraphInputs
+                  graph={graph}
+                  onGraphChange={visualizer.setGraph}
                 />
               ) : (
-                <ArrayVisualizer step={currentStep} speed={visualizer.speed} />
+                <ArrayInputs
+                  array={array}
+                  onArrayChange={visualizer.setArray}
+                  isSearch={isSearch}
+                  needsSortedInput={runner.needsSortedInput}
+                  target={target}
+                  onTargetChange={visualizer.setTarget}
+                />
               )}
             </div>
+          </Panel>
+          <div className="lg:sticky lg:top-20">
+            <PlaybackControls playback={playback} />
+          </div>
+        </aside>
 
-            <Tabs defaultValue="info" className="w-full">
-              <TabsList className="grid! w-full grid-cols-2">
-                <TabsTrigger value="info">Algorithm Info</TabsTrigger>
-                <TabsTrigger value="complexity">Analysis</TabsTrigger>
+        <main className="min-w-0 space-y-6">
+          <Panel>
+            {isDp ? (
+              <DpTableVisualizer step={step} />
+            ) : isGrid ? (
+              <GridVisualizer
+                step={step}
+                grid={grid}
+                onGridChange={visualizer.setGrid}
+                tool={gridTool}
+              />
+            ) : isGraph ? (
+              <GraphVisualizer
+                step={step}
+                vertices={graph.vertices}
+                edges={graph.edges}
+                directed={graph.directed}
+                frontierLabel={runner.frontierLabel}
+                orderLabel={runner.orderLabel}
+              />
+            ) : (
+              <ArrayVisualizer
+                step={step}
+                speed={playback.speed}
+                markerLabel={runner.markerLabel}
+                isSearch={isSearch}
+              />
+            )}
+
+            {step && (
+              <div className="mt-5 space-y-4">
+                <div
+                  className="flex gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3"
+                  aria-live="polite"
+                >
+                  <span className="shrink-0 rounded-md bg-primary px-2 py-0.5 font-mono text-xs font-semibold leading-5 text-primary-foreground">
+                    {playback.currentStep + 1}/{playback.totalSteps}
+                  </span>
+                  <p className="text-sm font-medium leading-5">
+                    {step.explanation}
+                  </p>
+                </div>
+                <OperationStats
+                  operations={step.operations}
+                  size={isGraph ? graph.vertices : array.length}
+                  isGraph={isGraph}
+                  isGrid={isGrid}
+                  isDp={isDp}
+                />
+              </div>
+            )}
+          </Panel>
+
+          <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 2xl:grid-cols-1">
+            <Panel
+              title="Pseudocode"
+              aside={
+                step?.line != null && (
+                  <span className="font-mono text-xs text-primary">
+                    line {step.line + 1}
+                  </span>
+                )
+              }
+            >
+              <PseudocodePanel
+                code={algorithm.pseudoCode}
+                activeLine={step?.line}
+              />
+            </Panel>
+            <Panel title={`About ${algorithm.name}`} className="2xl:hidden">
+              <AlgorithmInfoPanel algorithm={algorithm} />
+            </Panel>
+          </div>
+        </main>
+
+        <aside className="min-w-0 space-y-6 lg:col-span-2 2xl:col-span-1">
+          <Panel>
+            <Tabs defaultValue="log">
+              <TabsList
+                className={`grid! w-full ${hasMath ? "grid-cols-3" : "grid-cols-1"}`}
+              >
+                <TabsTrigger value="log">Step log</TabsTrigger>
+                {hasMath && <TabsTrigger value="math">Math</TabsTrigger>}
+                {hasMath && (
+                  <TabsTrigger value="walkthrough">Walkthrough</TabsTrigger>
+                )}
               </TabsList>
-              <TabsContent value="info">
-                <div className="bg-card border border-border rounded-lg p-6">
-                  <AlgorithmInfoPanel algorithm={visualizer.algorithm} />
-                </div>
+              <TabsContent value="log" className="pt-2">
+                <StepLog
+                  steps={playback.steps}
+                  currentStep={playback.currentStep}
+                  onSelect={playback.goToStep}
+                />
               </TabsContent>
-              <TabsContent value="complexity">
-                <div className="bg-card border border-border rounded-lg p-6 space-y-4">
-                  {currentStep && (
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                      <div className="p-4 bg-muted/30 rounded-lg">
-                        <p className="text-sm text-muted-foreground">
-                          Comparisons
-                        </p>
-                        <p className="text-2xl font-bold text-primary">
-                          {currentStep.operations.comparisons}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-muted/30 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Swaps</p>
-                        <p className="text-2xl font-bold text-primary">
-                          {currentStep.operations.swaps}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-muted/30 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Reads</p>
-                        <p className="text-2xl font-bold text-primary">
-                          {currentStep.operations.reads}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-muted/30 rounded-lg">
-                        <p className="text-sm text-muted-foreground">Writes</p>
-                        <p className="text-2xl font-bold text-primary">
-                          {currentStep.operations.writes}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {visualizer.algorithm && (
-                    <div className="space-y-4 mt-6">
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                        <div className="p-4 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-semibold mb-2">
-                            Time Complexity
-                          </p>
-                          <div className="space-y-1 text-sm font-mono">
-                            <p>
-                              Best: {visualizer.algorithm.complexity.time.best}
-                            </p>
-                            <p>
-                              Avg:{" "}
-                              {visualizer.algorithm.complexity.time.average}
-                            </p>
-                            <p>
-                              Worst:{" "}
-                              {visualizer.algorithm.complexity.time.worst}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="p-4 bg-muted/20 rounded-lg">
-                          <p className="text-sm font-semibold mb-2">
-                            Space Complexity
-                          </p>
-                          <p className="text-sm font-mono">
-                            {visualizer.algorithm.complexity.space}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+              <TabsContent value="math" className="pt-2">
+                <StepMathDetails
+                  step={step}
+                  isSorting={isSort}
+                  isSearching={isSearch}
+                  isGraph={isGraph}
+                  searchTarget={isSearch ? target : undefined}
+                  graphInfo={isGraph ? graph : undefined}
+                />
+              </TabsContent>
+              <TabsContent value="walkthrough" className="pt-2">
+                <AlgorithmMathSummary
+                  steps={playback.steps}
+                  isSorting={isSort}
+                  isSearching={isSearch}
+                  isGraph={isGraph}
+                  searchTarget={isSearch ? target : undefined}
+                  algorithmId={algorithmId}
+                  initialArray={array}
+                />
               </TabsContent>
             </Tabs>
-          </div>
-
-          <div className="space-y-6 max-h-[calc(100vh-220px)] overflow-y-auto pr-1">
-            <div className="bg-card border border-border rounded-lg p-6">
-              <StepMathDetails
-                step={currentStep}
-                isSorting={isSortingAlgorithm}
-                isSearching={isSearchingAlgorithm}
-                isGraph={isGraphAlgorithm}
-                searchTarget={isSearchingAlgorithm ? searchTarget : undefined}
-                graphInfo={
-                  isGraphAlgorithm
-                    ? {
-                        vertices: graphVertices,
-                        edges: parsedEdges,
-                        directed: graphDirected,
-                      }
-                    : undefined
-                }
-              />
-            </div>
-
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="text-xl font-semibold mb-4">
-                Full Calculation Summary
-              </h3>
-              <AlgorithmMathSummary
-                steps={visualizer.steps}
-                isSorting={isSortingAlgorithm}
-                isSearching={isSearchingAlgorithm}
-                isGraph={isGraphAlgorithm}
-                searchTarget={isSearchingAlgorithm ? searchTarget : undefined}
-                algorithmId={selectedAlgorithm}
-                initialArray={arrayData}
-              />
-            </div>
-          </div>
-        </div>
+          </Panel>
+          <Panel title={`About ${algorithm.name}`} className="hidden 2xl:block">
+            <AlgorithmInfoPanel algorithm={algorithm} />
+          </Panel>
+        </aside>
       </div>
     </div>
   );
-}
-
-function generateRandomArray(size) {
-  return Array.from(
-    { length: size },
-    () => Math.floor(Math.random() * 100) + 1,
-  );
-}
-
-function generateGraphEdges(vertices) {
-  const edges = [];
-  const maxEdges = Math.min(vertices * 2, 10);
-  const edgeCount =
-    Math.floor(Math.random() * (maxEdges - vertices)) + vertices;
-
-  for (let index = 0; index < edgeCount; index += 1) {
-    const from = Math.floor(Math.random() * vertices);
-    let to = Math.floor(Math.random() * vertices);
-
-    while (to === from) {
-      to = Math.floor(Math.random() * vertices);
-    }
-
-    const alreadyExists = edges.some(
-      (edge) =>
-        (edge[0] === from && edge[1] === to) ||
-        (edge[0] === to && edge[1] === from),
-    );
-
-    if (!alreadyExists) {
-      edges.push([from, to]);
-    }
-  }
-
-  return edges;
 }
