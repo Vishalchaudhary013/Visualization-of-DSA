@@ -365,7 +365,7 @@ export const DATA_STRUCTURES = {
   },
   trie: {
     id: "trie",
-    name: "Trie",
+    name: "Tree",
     description:
       "A tree of letters where each path from the root spells a word, so words that share a prefix share nodes.",
     category: "data-structure",

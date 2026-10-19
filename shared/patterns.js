@@ -423,7 +423,7 @@ while (queue.length) {
   },
   {
     id: "trie",
-    name: "Trie",
+    name: "Tree",
     group: "trees",
     summary:
       "A tree of characters where each path from the root spells a prefix. Lookups take O(word length), whatever the number of words.",
@@ -440,7 +440,7 @@ function insert(word) {
   node.end = true;
 }`,
     problems: [],
-    visualizers: [{ label: "Trie", to: "/data-structures/trie" }],
+    visualizers: [{ label: "Tree", to: "/data-structures/trie" }],
     practice: [
       "208. Implement Trie",
       "211. Design Add and Search Words",
